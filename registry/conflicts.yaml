@@ -1,0 +1,12 @@
+version: 0.1
+source: "Haq Research SOP Appendix C"
+last_read: "2026-11-11"
+conflicts:
+  C1: "Flight delay and denied-boarding compensation sources conflict; module parked."
+  C2: "Reported unclaimed-money totals use different scopes and dates."
+  C3: "Whether failed-transaction compensation is automatic in practice is unverified."
+  C4: "Exact MSMED Section 16 interest multiplier and bank-rate meaning are open."
+  C5: "Day-count convention and whether reversal day counts are open."
+  C6: "DPDP Act and Rules commencement status requires legal review."
+  C7: "Income-tax Act 2025 section numbering requires verification."
+  C8: "Status and effect of an MSME Amendment Bill 2026 require verification."

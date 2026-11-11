@@ -1,0 +1,11 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.venv/
+.env
+.DS_Store
+
+# Never commit real user data.
+data/real/*
+!data/real/.gitkeep
