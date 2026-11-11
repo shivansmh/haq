@@ -14,11 +14,27 @@ export default function App() {
   const [progress, setProgress] = useState({ label: 'Ready when you are', percent: 0 });
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState('');
+  const [dark, setDark] = useState(() => localStorage.getItem('haq-theme') === 'dark');
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+    localStorage.setItem('haq-theme', dark ? 'dark' : 'light');
+  }, [dark]);
 
   useEffect(() => {
     api.status().then((state) => setConnected(state.connected)).catch(() => undefined);
     const params = new URLSearchParams(window.location.search);
-    if (params.get('gmail') === 'connected') { setConnected(true); setNotice('Gmail is connected. Your inbox is ready to sweep.'); window.history.replaceState({}, '', window.location.pathname); }
+    if (params.get('gmail') === 'connected') {
+      setConnected(true);
+      setNotice('Gmail connected. Starting a read-only inbox sweep…');
+      window.history.replaceState({}, '', window.location.pathname);
+      setView('sweep');
+      setBusy(true);
+      api.liveSweep((label, percent) => setProgress({ label, percent }))
+        .then((data) => { setSweep(data); setProgress({ label: 'Live sweep complete', percent: 100 }); setNotice('Gmail connected. Your live inbox sweep is ready to review.'); })
+        .catch(() => { setNotice('Gmail connected, but the sweep could not start. Try Sweep my inbox again.'); setView('home'); })
+        .finally(() => setBusy(false));
+    }
     if (params.get('gmail') === 'denied') setNotice('Google access was not granted. Nothing was scanned.');
   }, []);
 
@@ -31,7 +47,7 @@ export default function App() {
   const disconnect = async () => { await api.disconnect().catch(() => undefined); setConnected(false); setNotice('Gmail access disconnected.'); };
   const reset = () => { setView('home'); setSweep(null); setSelected(null); setResult(null); setClaim(null); setNotice(''); setProgress({ label: 'Ready when you are', percent: 0 }); };
 
-  return <div className="site"><header className="nav"><button className="logo" onClick={reset} aria-label="Haq home"><span className="logo-mark">h</span><span>haq</span></button><nav><button onClick={() => document.getElementById('how')?.scrollIntoView({ behavior: 'smooth' })}>How it works</button><button onClick={() => document.getElementById('rights')?.scrollIntoView({ behavior: 'smooth' })}>The rights</button><button onClick={() => document.getElementById('faq')?.scrollIntoView({ behavior: 'smooth' })}>FAQs</button></nav><div className="nav-end">{connected && <button className="connected" onClick={disconnect}><span /> Gmail connected</button>}<button className="nav-cta" onClick={() => setModal(true)}>Sweep my inbox <span>↗</span></button></div></header>
+  return <div className="site"><header className="nav"><button className="logo" onClick={reset} aria-label="Haq home"><span className="logo-mark">h</span><span>haq</span></button><nav><button onClick={() => document.getElementById('how')?.scrollIntoView({ behavior: 'smooth' })}>How it works</button><button onClick={() => document.getElementById('rights')?.scrollIntoView({ behavior: 'smooth' })}>The rights</button><button onClick={() => document.getElementById('faq')?.scrollIntoView({ behavior: 'smooth' })}>FAQs</button></nav><div className="nav-end"><button className="theme-toggle" onClick={() => setDark((value) => !value)} aria-label={dark ? 'Use light theme' : 'Use dark theme'}>{dark ? 'Light' : 'Dark'} mode</button>{connected && <button className="connected" onClick={disconnect}><span /> Gmail connected</button>}<button className="nav-cta" onClick={() => connected ? startLive() : setModal(true)}>Sweep my inbox <span>↗</span></button></div></header>
     {notice && <div className="notice"><span>{notice}</span><button onClick={() => setNotice('')}>×</button></div>}
     {view === 'home' && <Home onSweep={() => setModal(true)} />}
     {view === 'sweep' && <SweepScreen sweep={sweep} progress={progress} busy={busy} onFindings={openFindings} onBack={reset} />}
