@@ -18,12 +18,12 @@ export function PrivacyNote({ light = false }: { light?: boolean }) {
   return (
     <div className={`privacy-pill ${light ? 'light' : ''}`}>
       <span className="privacy-dot" />
-      <span>Zero Server Storage · In-Memory Ephemeral Session · Bank & Email Tokens Purged on Tab Close</span>
+          <span>Transient processing · server-side session · disconnect and revoke anytime</span>
     </div>
   );
 }
 
-export function UnverifiedStamp({ label = 'STATUTORY RBI RULE' }: { label?: string }) {
+export function UnverifiedStamp({ label = 'UNVERIFIED RULE' }: { label?: string }) {
   return <span className="statutory-stamp">{label}</span>;
 }
 
@@ -39,7 +39,7 @@ export function RangeAmount({ result }: { result: PaymentResult }) {
   return (
     <div className="amount-hero-card">
       <div className="amount-label-row">
-        <span className="amount-label">STATUTORY COMPENSATION OWED</span>
+        <span className="amount-label">ILLUSTRATIVE WORKING RANGE</span>
         <span className="amount-sublabel">{result.statutory_rate_desc}</span>
       </div>
       <div className="amount-figure">
@@ -54,10 +54,10 @@ export function RangeAmount({ result }: { result: PaymentResult }) {
       <div className="amount-note">
         {result.conflicts.includes('C5') ? (
           <span>
-            <strong>Research Convention C5 Open:</strong> Lower figure excludes the reversal day; upper figure includes it under RBI Harmonised TAT framework.
+            <strong>Research convention open:</strong> this range is not a legal determination; the lower and upper figures reflect the unresolved day-count convention.
           </span>
         ) : (
-          <span>Mandated automatic compensation payable directly by remitter bank.</span>
+          <span>Review the source and transaction evidence before relying on this figure.</span>
         )}
       </div>
     </div>
@@ -71,7 +71,7 @@ export function TraceViewer({ trace }: { trace: TraceStep[] }) {
         <span className="trace-title">
           <span className="trace-icon">✦</span> Mathematical & Legal Trace
         </span>
-        <span className="trace-count">{trace.length} verified steps</span>
+        <span className="trace-count">{trace.length} working steps</span>
       </summary>
       <div className="trace-steps">
         {trace.map((item) => (

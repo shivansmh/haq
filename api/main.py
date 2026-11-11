@@ -42,6 +42,7 @@ FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173").rstrip("/")
 OAUTH_REDIRECT_URI = os.getenv("OAUTH_REDIRECT_URI", "http://localhost:8000/v1/gmail/callback")
 COOKIE_SECURE = os.getenv("COOKIE_SECURE", "false").lower() == "true"
 SESSION_COOKIE = "haq_session"
+SESSION_TTL_SECONDS = 3600
 OAUTH_STATES: dict[str, dict[str, float | str]] = {}
 GMAIL_SESSIONS: dict[str, dict[str, Any]] = {}
 
@@ -88,7 +89,7 @@ def _set_session_cookie(response: Response, session_id: str) -> None:
         httponly=True,
         secure=COOKIE_SECURE,
         samesite="none" if COOKIE_SECURE else "lax",
-        max_age=3600,
+        max_age=SESSION_TTL_SECONDS,
     )
 
 
@@ -97,6 +98,14 @@ def _gmail_token(request: Request) -> str:
     session = GMAIL_SESSIONS.get(session_id or "")
     if not session:
         raise HTTPException(status_code=401, detail="Connect Gmail before starting a sweep")
+    now = time.time()
+    if (
+        now - float(session.get("created_at", now)) > SESSION_TTL_SECONDS
+        or now - float(session.get("last_seen", now)) > SESSION_TTL_SECONDS
+    ):
+        GMAIL_SESSIONS.pop(session_id or "", None)
+        raise HTTPException(status_code=401, detail="Gmail session expired; connect again")
+    session["last_seen"] = now
     if float(session.get("expires_at", 0)) <= time.time() + 60:
         refresh_token = session.get("refresh_token")
         if not refresh_token:
@@ -170,6 +179,8 @@ def gmail_callback(
     session_id = str(state_data["session_id"])
     GMAIL_SESSIONS[session_id] = {
         **tokens,
+        "created_at": time.time(),
+        "last_seen": time.time(),
         "expires_at": time.time() + int(tokens.get("expires_in", 3600)),
     }
     response = RedirectResponse(f"{FRONTEND_URL}/?gmail=connected", status_code=303)
@@ -180,7 +191,16 @@ def gmail_callback(
 @app.get("/v1/gmail/status")
 def gmail_status(request: Request) -> dict[str, bool]:
     """Report connection state without returning Google tokens or email content."""
-    return {"connected": bool(_session_id(request) in GMAIL_SESSIONS)}
+    session_id = _session_id(request)
+    session = GMAIL_SESSIONS.get(session_id or "")
+    if not session:
+        return {"connected": False}
+    now = time.time()
+    if now - float(session.get("created_at", now)) > SESSION_TTL_SECONDS or now - float(session.get("last_seen", now)) > SESSION_TTL_SECONDS:
+        GMAIL_SESSIONS.pop(session_id or "", None)
+        return {"connected": False}
+    session["last_seen"] = now
+    return {"connected": True}
 
 
 @app.post("/v1/gmail/scan")
@@ -207,10 +227,14 @@ def gmail_disconnect(request: Request, response: Response) -> dict[str, bool]:
         try:
             import urllib.request
 
-            urllib.request.urlopen(
-                "https://oauth2.googleapis.com/revoke?token=" + str(session["access_token"]),
-                timeout=8,
+            revoke_payload = urllib.parse.urlencode({"token": str(session["access_token"])}).encode("utf-8")
+            revoke_request = urllib.request.Request(
+                "https://oauth2.googleapis.com/revoke",
+                data=revoke_payload,
+                headers={"Content-Type": "application/x-www-form-urlencoded"},
+                method="POST",
             )
+            urllib.request.urlopen(revoke_request, timeout=8)
         except Exception:
             pass
     response.delete_cookie(SESSION_COOKIE)
@@ -273,47 +297,16 @@ def ingest(payload: IngestRequest) -> dict[str, Any]:
                 "transactions": [tx.model_dump(mode="json") for tx in parsed_txns],
             }
 
-    # Fallback to demo fixture if raw text could not be parsed
     return {
-        "status": "success",
-        "mode": "demo",
-        "stamp": "STATUTORY RULE",
-        "parse_report": {"accepted": True, "rows": 3, "note": "Parsed in memory without persistence"},
-        "transactions": [
-            {
-                "txn_id": "demo-001",
-                "date": "2026-11-03",
-                "narration_clean": "UPI / SWIGGY (Debited, Failed at Merchant)",
-                "debit": 200000,
-                "credit": 0,
-                "balance": 1842000,
-                "channel": "UPI",
-                "ref": "431209845123",
-                "parse_confidence": 0.99,
-            },
-            {
-                "txn_id": "demo-002",
-                "date": "2026-11-09",
-                "narration_clean": "UPI / SWIGGY REVERSAL (Delayed 5 Days)",
-                "debit": 0,
-                "credit": 200000,
-                "balance": 2042000,
-                "channel": "UPI",
-                "ref": "431209845123",
-                "parse_confidence": 0.98,
-            },
-            {
-                "txn_id": "demo-003",
-                "date": "2026-10-28",
-                "narration_clean": "ATM CASH WDL / ATM8829103 (Cash Not Dispensed)",
-                "debit": 500000,
-                "credit": 0,
-                "balance": 1542000,
-                "channel": "ATM",
-                "ref": "ATM8829103",
-                "parse_confidence": 0.88,
-            },
-        ],
+        "status": "unparseable",
+        "mode": "live",
+        "stamp": "UNVERIFIED RULE",
+        "parse_report": {
+            "accepted": False,
+            "rows": 0,
+            "reason": "No supported transaction pattern was found in the supplied text.",
+        },
+        "transactions": [],
     }
 
 
@@ -351,6 +344,7 @@ def compute_payment(payload: PaymentComputeRequest) -> dict[str, Any]:
             "unresolved": ["reversal_day_counts"],
             "conflicts": ["C5"],
             "confidence": "Low",
+            "evidence_status": "missing_reversal_date",
             "trace": [],
         }
 
@@ -358,17 +352,20 @@ def compute_payment(payload: PaymentComputeRequest) -> dict[str, Any]:
     low_paise, high_paise = compute_range(deadline, resolution, per_day_paise=10000)
     low_days = delay_days(deadline, resolution, count_resolution_day=False)
     high_days = delay_days(deadline, resolution, count_resolution_day=True)
+    registry_entry = REGISTRY.get(payload.right_id)
+    verified = registry_entry.status == "Verified" and not registry_entry.unresolved_fields()
 
     return {
         "right_id": payload.right_id,
         "mode": "live",
-        "stamp": "STATUTORY RBI RULE",
+        "stamp": "STATUTORY RBI RULE" if verified else "UNVERIFIED RULE",
+        "illustrative": not verified,
         "deadline": deadline.isoformat(),
         "delay_days": {"low": low_days, "high": high_days},
         "amount_paise": {"low": low_paise, "high": high_paise},
         "unresolved": ["reversal_day_counts"],
         "conflicts": ["C5"],
-        "confidence": "High",
+        "confidence": "High" if verified else "Low",
         "source_citation": "RBI Circular DPSS.CO.PD No.629/02.01.014/2019-20",
         "trace": [
             {
@@ -406,13 +403,15 @@ def compute_msme(payload: MsmeComputeRequest) -> dict[str, Any]:
     overdue_days = max(0, (today - due).days)
 
     interest_paise = msme_interest(payload.amount_paise, overdue_days, bank_rate_pct=6.5)
+    registry_entry = REGISTRY.get("R-007")
+    verified = registry_entry.status == "Verified" and not registry_entry.unresolved_fields()
 
     return {
         "status": "success",
         "right_id": "R-007",
         "mode": "live",
-        "stamp": "STATUTORY MSMED RULE",
-        "illustrative": True,
+        "stamp": "STATUTORY MSMED RULE" if verified else "UNVERIFIED RULE",
+        "illustrative": not verified,
         "principal_paise": payload.amount_paise,
         "statutory_due_date": due.isoformat(),
         "days_overdue": overdue_days,
@@ -490,8 +489,13 @@ def unclaimed_guide() -> dict[str, Any]:
 @app.post("/v1/claims/draft")
 def claims_draft(payload: ClaimDraftRequest) -> dict[str, Any]:
     conf = payload.confirmed_result or {}
-    amount_str = f"₹{conf.get('amount_paise', {}).get('high', 50000) // 100:,}" if isinstance(conf.get("amount_paise"), dict) else "₹500"
-    txn_ref = conf.get("ref", "431209845123")
+    amount_value = (
+        conf.get("amount_paise", {}).get("high")
+        if isinstance(conf.get("amount_paise"), dict)
+        else None
+    )
+    amount_str = f"₹{amount_value // 100:,}" if isinstance(amount_value, int) else "[amount to verify]"
+    txn_ref = conf.get("ref") or "[transaction reference to verify]"
     bank = payload.bank_name or "[Bank Name / Principal Nodal Officer]"
 
     draft_text = (
@@ -503,9 +507,9 @@ def claims_draft(payload: ClaimDraftRequest) -> dict[str, Any]:
         f"I am writing to formally request statutory compensation for delayed reversal of a failed payment debited from my account.\n\n"
         f"1. Transaction Reference: {txn_ref}\n"
         f"2. Statutory Compensation Amount: {amount_str} (at ₹100 per day of delay beyond mandated TAT)\n\n"
-        f"Under RBI Circular DPSS.CO.PD No.629/02.01.014/2019-20, banks are statutorily required to credit compensation "
-        f"automatically without requiring a customer claim. As the credit was not received, please credit {amount_str} "
-        f"to my account within 7 working days, failing which this will be escalated to the RBI Integrated Ombudsman (https://cms.rbi.org.in).\n\n"
+        f"Please review the applicable RBI turnaround-time guidance and confirm whether compensation is due. "
+        f"The amount shown above is a working figure, not a legal determination. If unresolved, I may escalate "
+        f"through the RBI Integrated Ombudsman (https://cms.rbi.org.in).\n\n"
         f"Yours sincerely,\n"
         f"{payload.claimant_name}\n"
         f"{payload.claimant_mobile or '[Mobile Number]'}\n"

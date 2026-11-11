@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import unittest
+
 from engine.classifier import classify_prompt, extract_entities
 
 

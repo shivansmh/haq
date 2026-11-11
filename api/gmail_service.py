@@ -21,6 +21,7 @@ import re
 import urllib.parse
 import urllib.request
 from datetime import datetime
+from email.utils import parsedate_to_datetime
 from typing import Any
 from urllib.error import HTTPError
 
@@ -47,6 +48,17 @@ OTP_RE = re.compile(
 PROMO_RE = re.compile(
     r"\b(flat \d+% off|sale|deal|discount|coupon|cashback offer|subscribe|newsletter|unlocked)\b",
     re.IGNORECASE,
+)
+DATE_RE = re.compile(
+    r"\b(\d{1,2})[\s/-]+(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)"
+    r"[a-z]*[\s,-]+(20\d{2})\b",
+    re.IGNORECASE,
+)
+MAX_QUERY_LENGTH = 500
+DEFAULT_GMAIL_QUERY = (
+    '(newer_than:2y (upi OR debit OR debited OR reversal OR refund OR failed OR '
+    'incomplete OR overdue OR invoice OR payment OR "cash not dispensed")) '
+    '-category:promotions -category:social -category:forums -category:spam'
 )
 
 KNOWN_BANKS = (
@@ -140,77 +152,112 @@ def decode_base64_url(encoded: str) -> str:
 
 
 def extract_body_from_payload(payload: dict[str, Any]) -> str:
-    """Recursively extract plain text or HTML body from a Gmail payload."""
-    body_data = payload.get("body", {}).get("data", "")
-    if body_data:
-        return decode_base64_url(body_data)
+    """Extract all readable body parts, bounded for transient processing only."""
+    chunks: list[str] = []
 
-    parts = payload.get("parts", [])
-    for part in parts:
-        mime = part.get("mimeType", "")
-        if mime == "text/plain":
-            data = part.get("body", {}).get("data", "")
-            if data:
-                return decode_base64_url(data)
-        elif mime == "text/html":
-            data = part.get("body", {}).get("data", "")
-            if data:
-                # Strip simple html tags
-                raw_html = decode_base64_url(data)
-                return re.sub(r"<[^>]+>", " ", raw_html)
+    def visit(node: dict[str, Any]) -> None:
+        mime = node.get("mimeType", "")
+        data = node.get("body", {}).get("data", "")
+        if data and mime == "text/plain":
+            chunks.append(decode_base64_url(data))
+        elif data and mime == "text/html":
+            chunks.append(re.sub(r"<[^>]+>", " ", decode_base64_url(data)))
+        for child in node.get("parts", []):
+            visit(child)
 
-    # Recursive sub-parts
-    for part in parts:
-        sub_body = extract_body_from_payload(part)
-        if sub_body:
-            return sub_body
+    visit(payload)
+    return "\n".join(chunk for chunk in chunks if chunk)[:8000]
 
-    return ""
+
+def parse_message_date(value: str, body: str = "") -> str | None:
+    """Return an ISO date from a header or common Indian alert date in the body."""
+    if value:
+        try:
+            return parsedate_to_datetime(value).date().isoformat()
+        except (TypeError, ValueError, OverflowError):
+            pass
+    match = DATE_RE.search(body)
+    if match:
+        try:
+            return datetime.strptime(
+                f"{match.group(1)} {match.group(2)} {match.group(3)}", "%d %b %Y"
+            ).date().isoformat()
+        except ValueError:
+            pass
+    return None
+
+
+def parse_amount(text: str) -> int | None:
+    match = AMOUNT_RE.search(text)
+    if not match:
+        return None
+    try:
+        return round(float(match.group(1).replace(",", "")) * 100)
+    except ValueError:
+        return None
 
 
 def fetch_live_gmail(access_token: str, query: str, max_results: int = 50) -> list[dict[str, Any]]:
-    """Query real Gmail REST API and retrieve message headers, snippets, and bodies."""
-    # Target Indian financial alerts and exclude noise
-    financial_query = (
-        query
-        or '(from:(alerts@* OR *@hdfcbank* OR *@sbi.co.in OR *@icicibank* OR *@axisbank* OR *@kotak* OR *@phonepe* OR *@paytm* OR *@google* OR *@razorpay*) OR subject:(debited OR "UPI" OR "ATM" OR refund OR reversal OR failed OR invoice OR "Rs." OR "INR")) -category:promotions -category:spam'
-    )
+    """Query Gmail with bounded pagination and inspect each selected message in memory."""
+    if max_results > 100:
+        max_results = 100
+    financial_query = (query or DEFAULT_GMAIL_QUERY).strip()
+    if len(financial_query) > MAX_QUERY_LENGTH:
+        raise GmailAccessError("Gmail search query is too long")
 
-    q_encoded = urllib.parse.quote(financial_query)
-    url = f"https://gmail.googleapis.com/gmail/v1/users/me/messages?q={q_encoded}&maxResults={max_results}"
-    req = urllib.request.Request(url, headers={"Authorization": f"Bearer {access_token}"})
-
+    headers = {"Authorization": f"Bearer {access_token}"}
+    metadata: list[dict[str, Any]] = []
+    page_token: str | None = None
     try:
-        with urllib.request.urlopen(req, timeout=12) as response:
-            data = json.loads(response.read().decode("utf-8"))
-            messages_meta = data.get("messages", [])
+        while len(metadata) < max_results:
+            params = {
+                "q": financial_query,
+                "maxResults": str(min(100, max_results - len(metadata))),
+            }
+            if page_token:
+                params["pageToken"] = page_token
+            url = (
+                "https://gmail.googleapis.com/gmail/v1/users/me/messages?"
+                + urllib.parse.urlencode(params)
+            )
+            req = urllib.request.Request(url, headers=headers)
+            with urllib.request.urlopen(req, timeout=12) as response:
+                data = json.loads(response.read().decode("utf-8"))
+            metadata.extend(data.get("messages", []))
+            page_token = data.get("nextPageToken")
+            if not page_token or not data.get("messages"):
+                break
 
         results: list[dict[str, Any]] = []
-        # Inspect top messages for financial content
-        for item in messages_meta[:25]:
+        for item in metadata[:max_results]:
             msg_id = item["id"]
-            msg_url = f"https://gmail.googleapis.com/gmail/v1/users/me/messages/{msg_id}?format=full"
-            msg_req = urllib.request.Request(msg_url, headers={"Authorization": f"Bearer {access_token}"})
+            msg_url = (
+                "https://gmail.googleapis.com/gmail/v1/users/me/messages/"
+                f"{urllib.parse.quote(msg_id)}?format=full"
+            )
+            msg_req = urllib.request.Request(msg_url, headers=headers)
             try:
                 with urllib.request.urlopen(msg_req, timeout=8) as msg_res:
                     msg_data = json.loads(msg_res.read().decode("utf-8"))
-                    payload = msg_data.get("payload", {})
-                    headers = {h["name"].lower(): h["value"] for h in payload.get("headers", [])}
-                    body_text = extract_body_from_payload(payload)
-                    snippet = msg_data.get("snippet", "")
-
-                    results.append({
+                payload = msg_data.get("payload", {})
+                message_headers = {
+                    h["name"].lower(): h["value"] for h in payload.get("headers", [])
+                }
+                body_text = extract_body_from_payload(payload)
+                snippet = msg_data.get("snippet", "")
+                results.append(
+                    {
                         "id": msg_id,
-                        "sender": headers.get("from", "Unknown Sender"),
-                        "subject": headers.get("subject", "No Subject"),
-                        "date": headers.get("date", ""),
-                        "snippet": snippet or (body_text[:180] if body_text else ""),
-                        "body": body_text[:1000] if body_text else snippet,
+                        "sender": message_headers.get("from", "Unknown Sender"),
+                        "subject": message_headers.get("subject", "No Subject"),
+                        "date": message_headers.get("date", ""),
+                        "snippet": snippet or body_text[:240],
+                        "body": body_text,
                         "is_real": True,
-                    })
-            except Exception:
+                    }
+                )
+            except HTTPError:
                 continue
-
         return results
     except HTTPError as exc:
         detail = exc.read().decode("utf-8", errors="replace")
@@ -307,157 +354,130 @@ def get_demo_email_corpus() -> list[dict[str, Any]]:
 
 
 def filter_and_extract_transactions(raw_messages: list[dict[str, Any]]) -> dict[str, Any]:
-    """Airfairness-style inbox sweep: clean noise, isolate financial alerts, pair TAT events."""
+    """Clean a bounded inbox and emit only evidence-derived signals and candidates."""
     audited_emails: list[dict[str, Any]] = []
     candidates: list[dict[str, Any]] = []
-
-    noise_count = 0
-    financial_count = 0
-
-    debits_by_ref: dict[str, dict[str, Any]] = {}
+    financial_items: list[dict[str, Any]] = []
 
     for msg in raw_messages:
-        text = f"{msg.get('subject', '')} {msg.get('snippet', '')} {msg.get('body', '')}"
-
-        # Tier 1: Reject OTPs and promotional coupons
+        body = msg.get("body", "")
+        subject = msg.get("subject", "")
+        snippet = msg.get("snippet", "")
+        text = f"{subject} {snippet} {body}"
+        lowered = text.lower()
+        sender = msg.get("sender", "")
+        sender_lower = sender.lower()
         if OTP_RE.search(text):
-            noise_count += 1
-            audited_emails.append({
-                **msg,
-                "status": "noise",
-                "filterTag": "OTP / Verification (Filtered)",
-            })
-            continue
-
-        if PROMO_RE.search(text) and not any(k in msg.get("sender", "").lower() for k in KNOWN_BANKS):
-            noise_count += 1
-            audited_emails.append({
-                **msg,
-                "status": "noise",
-                "filterTag": "Promotional Noise (Filtered)",
-            })
-            continue
-
-        # Tier 2: Check for genuine financial signal
-        amount_match = AMOUNT_RE.search(text)
-        ref_match = REF_RE.search(text) or UPI_12DIGIT_RE.search(text)
-        is_bank_sender = any(k in msg.get("sender", "").lower() for k in KNOWN_BANKS) or "invoice" in text.lower()
-
-        if not is_bank_sender and not amount_match:
-            noise_count += 1
-            audited_emails.append({
-                **msg,
-                "status": "noise",
-                "filterTag": "Non-Financial Notification (Filtered)",
-            })
-            continue
-
-        financial_count += 1
-        amount_inr = float(amount_match.group(1).replace(",", "")) if amount_match else 0.0
-        amount_paise = round(amount_inr * 100)
-        ref_id = ref_match.group(1) if ref_match else None
-
-        channel = "UPI" if "upi" in text.lower() else "ATM" if "atm" in text.lower() else "MSME" if "invoice" in text.lower() else "CARD"
-
-        is_reversal = any(w in text.lower() for w in ("reversal", "refund", "credited back", "reversed"))
-        is_failure = any(w in text.lower() for w in ("failed", "incomplete", "timeout", "unreversed", "overdue"))
-
-        if is_reversal:
-            filter_tag = "Reversal / Refund Event"
-            status = "financial_alert"
-        elif is_failure or is_bank_sender:
-            filter_tag = "Actionable Violation Candidate"
-            status = "violation_detected"
+            status, tag = "noise", "OTP / verification filtered"
+        elif PROMO_RE.search(text) and not any(k in sender_lower for k in KNOWN_BANKS):
+            status, tag = "noise", "Promotional noise filtered"
         else:
-            filter_tag = "Verified Financial Alert"
-            status = "financial_alert"
+            amount_paise = parse_amount(text)
+            ref_match = REF_RE.search(text) or UPI_12DIGIT_RE.search(text)
+            is_financial = bool(amount_paise or ref_match or any(k in sender_lower for k in KNOWN_BANKS))
+            if not is_financial:
+                status, tag = "noise", "Non-financial notification filtered"
+            else:
+                channel = (
+                    "UPI" if "upi" in lowered else
+                    "ATM" if "atm" in lowered else
+                    "MSME" if "invoice" in lowered or "overdue" in lowered else "CARD"
+                )
+                is_reversal = any(w in lowered for w in ("reversal", "refund", "credited back", "reversed"))
+                is_debit = any(w in lowered for w in ("debited", "debit", "withdrawal", "deducted"))
+                is_failure = any(
+                    w in lowered for w in ("failed", "incomplete", "timeout", "cash not dispensed", "overdue", "unreversed")
+                )
+                status = "financial_alert"
+                tag = "Financial signal"
+                if is_failure:
+                    status, tag = "violation_detected", "Potential exception; review evidence"
+                financial_items.append(
+                    {
+                        **msg,
+                        "amount_paise": amount_paise,
+                        "ref": ref_match.group(1) if ref_match else None,
+                        "channel": channel,
+                        "date_iso": parse_message_date(msg.get("date", ""), body),
+                        "is_reversal": is_reversal,
+                        "is_debit": is_debit,
+                        "is_failure": is_failure,
+                    }
+                )
+                email_record = {
+                    **msg,
+                    "status": status,
+                    "filterTag": tag,
+                    "extractedAmount": amount_paise,
+                    "extractedChannel": channel,
+                    "extractedRef": ref_match.group(1) if ref_match else None,
+                }
+                audited_emails.append(email_record)
+                continue
+        audited_emails.append({**msg, "status": status, "filterTag": tag})
 
-        email_record = {
-            **msg,
-            "status": status,
-            "filterTag": filter_tag,
-            "extractedAmount": amount_paise,
-            "extractedChannel": channel,
-            "extractedRef": ref_id,
+    def source(item: dict[str, Any]) -> dict[str, str]:
+        return {
+            "sender": item.get("sender", "Unknown Sender"),
+            "subject": item.get("subject", "No Subject"),
+            "snippet": item.get("snippet", ""),
         }
-        audited_emails.append(email_record)
 
-        # Candidate creation
-        if channel == "UPI" and not is_reversal and ref_id:
-            debits_by_ref[ref_id] = email_record
-        elif channel == "ATM" and is_failure:
-            candidates.append({
-                "txn_id": f"gmail-{msg['id']}",
-                "date": "2026-10-28",
-                "narration_raw": text,
-                "narration_clean": f"ATM Cash Dispense Failure ({msg['snippet'][:50]}...)",
-                "debit": amount_paise,
-                "credit": 0,
-                "balance": 1542000,
-                "channel": "ATM",
-                "ref": ref_id,
-                "parse_confidence": 0.95,
-                "statutory_law": "RBI Harmonised TAT Circular Item 3",
-                "statutory_compensation": 90000,  # ₹900 (9 days late @ ₹100/day)
-                "email_source": {
-                    "sender": msg["sender"],
-                    "subject": msg["subject"],
-                    "snippet": msg["snippet"],
-                },
-            })
-        elif channel == "MSME" and is_failure:
-            candidates.append({
-                "txn_id": f"gmail-{msg['id']}",
-                "date": "2026-09-01",
-                "narration_raw": text,
-                "narration_clean": "MSME Overdue Invoice #MSME-2026-441 (42 Days Late)",
-                "debit": amount_paise,
-                "credit": 0,
-                "balance": 0,
-                "channel": "MSME",
-                "ref": "MSME-2026-441",
-                "parse_confidence": 0.98,
-                "statutory_law": "MSMED Act 2006, Section 15 & 16 (3x Bank Rate)",
-                "email_source": {
-                    "sender": msg["sender"],
-                    "subject": msg["subject"],
-                    "snippet": msg["snippet"],
-                },
-            })
+    # A debit becomes a candidate only when a matching later reversal is found.
+    for debit in [item for item in financial_items if item["is_debit"] and not item["is_reversal"]]:
+        matches = [
+            item for item in financial_items
+            if item["is_reversal"]
+            and (debit["ref"] and item["ref"] == debit["ref"])
+            and item.get("date_iso") and debit.get("date_iso")
+            and item["date_iso"] >= debit["date_iso"]
+        ]
+        if not matches:
+            continue
+        reversal = sorted(matches, key=lambda item: item["date_iso"])[0]
+        candidates.append(
+            {
+                "txn_id": f"gmail-{debit['id']}",
+                "date": debit.get("date_iso"),
+                "reversal_date": reversal.get("date_iso"),
+                "narration_clean": f"{debit['channel']} debit followed by a matching reversal",
+                "debit": debit.get("amount_paise") or 0,
+                "channel": debit["channel"],
+                "ref": debit.get("ref"),
+                "parse_confidence": 0.9 if debit.get("date_iso") else 0.7,
+                "evidence_status": "paired_reversal",
+                "email_source": source(debit),
+            }
+        )
 
-    # Pair UPI debits with late reversals (e.g. 03 Nov debit with 09 Nov reversal = 5 days delay)
-    for ref_id, debit_item in debits_by_ref.items():
-        candidates.insert(0, {
-            "txn_id": f"gmail-{debit_item['id']}",
-            "date": "2026-11-03",
-            "narration_raw": debit_item["snippet"],
-            "narration_clean": "UPI / SWIGGY (Debited, Reversed 5 Days Late)",
-            "debit": debit_item["extractedAmount"],
-            "credit": 0,
-            "balance": 1842000,
-            "channel": "UPI",
-            "ref": ref_id,
-            "parse_confidence": 0.99,
-            "statutory_law": "RBI Harmonised TAT Circular DPSS.CO.PD No.629 (T+1 Rule)",
-            "statutory_compensation": 50000,  # ₹500 (5 days @ ₹100/day)
-            "email_source": {
-                "sender": debit_item["sender"],
-                "subject": debit_item["subject"],
-                "snippet": debit_item["snippet"],
-            },
-        })
+    # Explicit failure/overdue language is a review candidate, but not proof of liability.
+    for item in financial_items:
+        if item["is_failure"] and not any(c["txn_id"] == f"gmail-{item['id']}" for c in candidates):
+            candidates.append(
+                {
+                    "txn_id": f"gmail-{item['id']}",
+                    "date": item.get("date_iso"),
+                    "reversal_date": None,
+                    "narration_clean": f"{item['channel']} message contains failure or overdue language",
+                    "debit": item.get("amount_paise") or 0,
+                    "channel": item["channel"],
+                    "ref": item.get("ref"),
+                    "parse_confidence": 0.75 if item.get("amount_paise") else 0.55,
+                    "evidence_status": "potential_exception",
+                    "email_source": source(item),
+                }
+            )
 
     safe_emails = [
         {key: value for key, value in email.items() if key not in {"body", "is_real"}}
         for email in audited_emails
     ]
-
     return {
         "status": "success",
         "sweep_timestamp": datetime.now().isoformat(),
-        "emails_scanned": len(raw_messages) + 1270,
-        "noise_filtered": noise_count + 1240,
-        "financial_alerts_found": financial_count + 25,
+        "emails_scanned": len(raw_messages),
+        "noise_filtered": sum(email["status"] == "noise" for email in audited_emails),
+        "financial_alerts_found": sum(email["status"] != "noise" for email in audited_emails),
         "violations_detected": len(candidates),
         "emails": safe_emails,
         "candidates": candidates,

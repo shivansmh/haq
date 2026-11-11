@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import unittest
 from datetime import date
+
 from engine.delay import compute_range, delay_days
 
 

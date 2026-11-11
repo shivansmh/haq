@@ -133,30 +133,31 @@ def classify_prompt(prompt: str, filename: str | None = None) -> dict[str, Any]:
         title = "Failed Payment & Statutory Reversal Compensation"
         statutory_law = "Reserve Bank of India (RBI) Harmonised TAT Circular DPSS.CO.PD No.629/02.01.014/2019-20"
         summary = (
-            "Under RBI regulations, banks must reverse failed UPI/ATM/Card debits within T+1 or T+5 calendar days. "
-            "Any delay beyond this window entitles the account holder to ₹100 per day in automatic compensation."
+            "This text appears related to a failed payment or delayed reversal. "
+            "The RBI turnaround-time material may be relevant, but the transaction facts and current rule status "
+            "must be checked before treating compensation as due."
         )
         suggested_route = "payment_flow"
     elif best_cat == "msme_dues":
         title = "MSME Delayed Invoice & Statutory Compounding Interest"
         statutory_law = "MSMED Act 2006 (Sections 15 & 16) & Income-tax Act Section 43B(h)/37(2)(g)"
         summary = (
-            "Under Section 15 & 16 of the MSMED Act, buyers must settle invoices within 15 to 45 days. "
-            "Overdue dues statutorily incur compound interest with monthly rests at 3× the RBI Bank Rate (19.5% p.a.)."
+            "This text appears related to an unpaid MSME invoice. Sections 15 and 16 of the MSMED Act may be relevant, "
+            "but the supplier status, agreement, dates, and current bank-rate inputs must be verified before calculating a claim."
         )
         suggested_route = "msme_flow"
     elif best_cat == "unclaimed_wealth":
         title = "Unclaimed Assets & Dormant Wealth Recovery"
         statutory_law = "UDGAM Portal (RBI DEA Fund), MCA IEPF Authority Rules, & EPFO Inoperative Regulations"
         summary = (
-            "Dormant bank deposits (UDGAM), matured insurance policies (Bima Bharosa), unclaimed corporate dividends (IEPF), "
-            "and inoperative PF balances remain 100% legally claimable with accrued interest directly from official portals."
+            "This text appears related to an unclaimed-asset search. The official UDGAM, IEPF, Bima Bharosa, or EPFO "
+            "route may be relevant; eligibility and claimability must be confirmed with the relevant portal."
         )
         suggested_route = "unclaimed_flow"
     else:
         title = "General Consumer & Financial Rights"
         statutory_law = "Consumer Protection Act, 2019 & Banking Ombudsman Guidelines"
-        summary = "Reviewing applicable Indian consumer and banking regulations."
+        summary = "This is a general rights route. Haq can suggest sources, but it cannot determine a legal conclusion from this text alone."
         suggested_route = "general_flow"
 
     return {
