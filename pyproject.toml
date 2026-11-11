@@ -9,3 +9,7 @@ exclude = [".venv", "data/real"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I"]
+
+[tool.ruff.lint.per-file-ignores]
+"api/main.py" = ["E501"]
+"api/gmail_service.py" = ["E501"]

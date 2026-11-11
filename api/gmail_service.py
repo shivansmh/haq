@@ -17,17 +17,21 @@ from __future__ import annotations
 
 import base64
 import json
-import os
 import re
 import urllib.parse
 import urllib.request
-from datetime import date, datetime, timedelta
+from datetime import datetime
 from typing import Any
+from urllib.error import HTTPError
 
 GOOGLE_AUTH_ENDPOINT = "https://accounts.google.com/o/oauth2/v2/auth"
 GOOGLE_TOKEN_ENDPOINT = "https://oauth2.googleapis.com/token"
 GOOGLE_REVOKE_ENDPOINT = "https://oauth2.googleapis.com/revoke"
 GMAIL_SCOPE = "https://www.googleapis.com/auth/gmail.readonly"
+
+
+class GmailAccessError(RuntimeError):
+    """Raised when Google refuses or cannot complete a Gmail API request."""
 
 # Regex patterns for Indian financial entities
 AMOUNT_RE = re.compile(r"(?:₹|rs\.?|inr)\s*([\d,]+(?:\.\d{1,2})?)", re.IGNORECASE)
@@ -64,7 +68,7 @@ KNOWN_BANKS = (
 )
 
 
-def get_google_auth_url(client_id: str, redirect_uri: str, state: str = "haq_sweep") -> str:
+def get_google_auth_url(client_id: str, redirect_uri: str, state: str) -> str:
     """Generate Google OAuth 2.0 authorization URL requesting read-only Gmail access."""
     params = {
         "client_id": client_id,
@@ -72,7 +76,7 @@ def get_google_auth_url(client_id: str, redirect_uri: str, state: str = "haq_swe
         "response_type": "code",
         "scope": GMAIL_SCOPE,
         "access_type": "offline",
-        "prompt": "consent",
+        "include_granted_scopes": "true",
         "state": state,
     }
     return f"{GOOGLE_AUTH_ENDPOINT}?{urllib.parse.urlencode(params)}"
@@ -96,6 +100,26 @@ def exchange_code_for_tokens(
         headers={"Content-Type": "application/x-www-form-urlencoded"},
     )
 
+    try:
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            return json.loads(resp.read().decode("utf-8"))
+    except Exception as exc:
+        return {"error": str(exc)}
+
+
+def refresh_access_token(refresh_token: str, client_id: str, client_secret: str) -> dict[str, Any]:
+    """Refresh an access token without exposing the refresh token to the browser."""
+    payload = urllib.parse.urlencode({
+        "client_id": client_id,
+        "client_secret": client_secret,
+        "refresh_token": refresh_token,
+        "grant_type": "refresh_token",
+    }).encode("utf-8")
+    req = urllib.request.Request(
+        GOOGLE_TOKEN_ENDPOINT,
+        data=payload,
+        headers={"Content-Type": "application/x-www-form-urlencoded"},
+    )
     try:
         with urllib.request.urlopen(req, timeout=10) as resp:
             return json.loads(resp.read().decode("utf-8"))
@@ -188,9 +212,11 @@ def fetch_live_gmail(access_token: str, query: str, max_results: int = 50) -> li
                 continue
 
         return results
+    except HTTPError as exc:
+        detail = exc.read().decode("utf-8", errors="replace")
+        raise GmailAccessError(f"Google Gmail API returned {exc.code}: {detail[:240]}") from exc
     except Exception as exc:
-        print(f"Gmail live fetch error: {exc}")
-        return []
+        raise GmailAccessError("Google Gmail API could not be reached") from exc
 
 
 def get_demo_email_corpus() -> list[dict[str, Any]]:
@@ -421,6 +447,11 @@ def filter_and_extract_transactions(raw_messages: list[dict[str, Any]]) -> dict[
             },
         })
 
+    safe_emails = [
+        {key: value for key, value in email.items() if key not in {"body", "is_real"}}
+        for email in audited_emails
+    ]
+
     return {
         "status": "success",
         "sweep_timestamp": datetime.now().isoformat(),
@@ -428,23 +459,22 @@ def filter_and_extract_transactions(raw_messages: list[dict[str, Any]]) -> dict[
         "noise_filtered": noise_count + 1240,
         "financial_alerts_found": financial_count + 25,
         "violations_detected": len(candidates),
-        "emails": audited_emails,
+        "emails": safe_emails,
         "candidates": candidates,
     }
 
 
 def search_gmail(
-    access_token: str | None = None, query: str = "", max_results: int = 50
+    access_token: str | None = None, query: str = "", max_results: int = 50, demo: bool = False
 ) -> dict[str, Any]:
-    """Perform real Gmail sweep when access token is provided, or use demo corpus."""
+    """Perform a live Gmail sweep, or use the synthetic corpus only when demo is explicit."""
     raw_messages: list[dict[str, Any]] = []
 
     if access_token and access_token.strip():
-        # Live Gmail REST API call
         raw_messages = fetch_live_gmail(access_token.strip(), query, max_results)
-
-    if not raw_messages:
-        # Use high-fidelity Indian banking corpus
+    elif demo:
         raw_messages = get_demo_email_corpus()
+    else:
+        raise GmailAccessError("A connected Gmail session is required")
 
     return filter_and_extract_transactions(raw_messages)

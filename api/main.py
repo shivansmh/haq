@@ -1,13 +1,15 @@
 from __future__ import annotations
 
 import os
+import secrets
+import time
 from datetime import date, timedelta
 from typing import Any
 from uuid import uuid4
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, RedirectResponse
 
 from engine.calculators.msme import msme_due_date, msme_interest
 from engine.classifier import classify_prompt
@@ -16,20 +18,31 @@ from engine.registry_loader import load_registry
 from ingest.paste_parser import parse_alert_text
 
 from .fixtures import health_payload
-from .gmail_service import get_google_auth_url, search_gmail
+from .gmail_service import (
+    GmailAccessError,
+    exchange_code_for_tokens,
+    get_google_auth_url,
+    refresh_access_token,
+    search_gmail,
+)
 from .schemas import (
     ClaimDraftRequest,
     ClassifyRequest,
     ClassifyResponse,
     DetectRequest,
     GmailScanRequest,
-    GuideRequest,
     IngestRequest,
     MsmeComputeRequest,
     PaymentComputeRequest,
 )
 
 REGISTRY = load_registry()
+FRONTEND_ORIGIN = os.getenv("FRONTEND_ORIGIN", "http://localhost:5173").rstrip("/")
+OAUTH_REDIRECT_URI = os.getenv("OAUTH_REDIRECT_URI", "http://localhost:8000/v1/gmail/callback")
+COOKIE_SECURE = os.getenv("COOKIE_SECURE", "false").lower() == "true"
+SESSION_COOKIE = "haq_session"
+OAUTH_STATES: dict[str, dict[str, float | str]] = {}
+GMAIL_SESSIONS: dict[str, dict[str, Any]] = {}
 
 app = FastAPI(
     title="Haq API",
@@ -43,7 +56,7 @@ app = FastAPI(
 # Enable CORS for frontend Vite dev server & production origin
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[FRONTEND_ORIGIN],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -61,6 +74,44 @@ async def http_error(request: Request, exc: HTTPException) -> JSONResponse:
             "request_id": request.headers.get("x-request-id", str(uuid4())),
         },
     )
+
+
+def _session_id(request: Request) -> str | None:
+    return request.cookies.get(SESSION_COOKIE)
+
+
+def _set_session_cookie(response: Response, session_id: str) -> None:
+    response.set_cookie(
+        SESSION_COOKIE,
+        session_id,
+        httponly=True,
+        secure=COOKIE_SECURE,
+        samesite="none" if COOKIE_SECURE else "lax",
+        max_age=3600,
+    )
+
+
+def _gmail_token(request: Request) -> str:
+    session_id = _session_id(request)
+    session = GMAIL_SESSIONS.get(session_id or "")
+    if not session:
+        raise HTTPException(status_code=401, detail="Connect Gmail before starting a sweep")
+    if float(session.get("expires_at", 0)) <= time.time() + 60:
+        refresh_token = session.get("refresh_token")
+        if not refresh_token:
+            GMAIL_SESSIONS.pop(session_id or "", None)
+            raise HTTPException(status_code=401, detail="Gmail session expired; connect again")
+        refreshed = refresh_access_token(
+            refresh_token,
+            os.getenv("GOOGLE_CLIENT_ID", ""),
+            os.getenv("GOOGLE_CLIENT_SECRET", ""),
+        )
+        if refreshed.get("error") or not refreshed.get("access_token"):
+            GMAIL_SESSIONS.pop(session_id or "", None)
+            raise HTTPException(status_code=401, detail="Gmail session could not be refreshed")
+        session.update(refreshed)
+        session["expires_at"] = time.time() + int(refreshed.get("expires_in", 3600))
+    return str(session["access_token"])
 
 
 @app.get("/healthz")
@@ -82,17 +133,87 @@ def classify_endpoint(payload: ClassifyRequest) -> dict[str, Any]:
 
 
 @app.get("/v1/gmail/auth-url")
-def gmail_auth_url(redirect_uri: str = "http://localhost:5173/auth/callback") -> dict[str, str]:
-    """Generate real Google OAuth 2.0 authorization URL for read-only Gmail access."""
-    client_id = os.getenv("GOOGLE_CLIENT_ID", "demo-client-id.apps.googleusercontent.com")
-    url = get_google_auth_url(client_id, redirect_uri)
-    return {"auth_url": url, "client_id_configured": bool(os.getenv("GOOGLE_CLIENT_ID"))}
+def gmail_auth_url(request: Request, response: Response) -> dict[str, str | bool]:
+    """Create a CSRF-bound Google consent URL; tokens never go to the browser."""
+    client_id = os.getenv("GOOGLE_CLIENT_ID", "")
+    if not client_id or not os.getenv("GOOGLE_CLIENT_SECRET"):
+        return {"auth_url": "", "client_id_configured": False}
+    session_id = _session_id(request) or secrets.token_urlsafe(32)
+    state = secrets.token_urlsafe(32)
+    OAUTH_STATES[state] = {"session_id": session_id, "created_at": time.time()}
+    _set_session_cookie(response, session_id)
+    return {
+        "auth_url": get_google_auth_url(client_id, OAUTH_REDIRECT_URI, state),
+        "client_id_configured": True,
+    }
+
+
+@app.get("/v1/gmail/callback")
+def gmail_callback(
+    code: str | None = None, state: str | None = None, error: str | None = None
+) -> Response:
+    """Exchange Google's authorization code server-side and return to the Pages app."""
+    state_data = OAUTH_STATES.pop(state or "", None)
+    if not state_data or time.time() - float(state_data["created_at"]) > 600:
+        return RedirectResponse(f"{FRONTEND_ORIGIN}/?gmail=error&reason=invalid_state", status_code=303)
+    if error or not code:
+        return RedirectResponse(f"{FRONTEND_ORIGIN}/?gmail=denied", status_code=303)
+    tokens = exchange_code_for_tokens(
+        code,
+        os.getenv("GOOGLE_CLIENT_ID", ""),
+        os.getenv("GOOGLE_CLIENT_SECRET", ""),
+        OAUTH_REDIRECT_URI,
+    )
+    if tokens.get("error") or not tokens.get("access_token"):
+        return RedirectResponse(f"{FRONTEND_ORIGIN}/?gmail=error&reason=token_exchange", status_code=303)
+    session_id = str(state_data["session_id"])
+    GMAIL_SESSIONS[session_id] = {
+        **tokens,
+        "expires_at": time.time() + int(tokens.get("expires_in", 3600)),
+    }
+    response = RedirectResponse(f"{FRONTEND_ORIGIN}/?gmail=connected", status_code=303)
+    _set_session_cookie(response, session_id)
+    return response
+
+
+@app.get("/v1/gmail/status")
+def gmail_status(request: Request) -> dict[str, bool]:
+    """Report connection state without returning Google tokens or email content."""
+    return {"connected": bool(_session_id(request) in GMAIL_SESSIONS)}
 
 
 @app.post("/v1/gmail/scan")
-def gmail_scan_endpoint(payload: GmailScanRequest) -> dict[str, Any]:
-    """Search Gmail, apply 3-tier noise reduction filter, and detect statutory TAT violations."""
-    return search_gmail(payload.access_token, payload.query or "", payload.max_results)
+def gmail_scan_endpoint(request: Request, payload: GmailScanRequest) -> dict[str, Any]:
+    """Search Gmail with the server-side session and apply the in-memory sweep."""
+    try:
+        return search_gmail(_gmail_token(request), payload.query or "", payload.max_results)
+    except GmailAccessError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+
+
+@app.post("/v1/gmail/demo")
+def gmail_demo() -> dict[str, Any]:
+    """Run the synthetic inbox demo without requesting Google access."""
+    return search_gmail(None, max_results=50, demo=True)
+
+
+@app.post("/v1/gmail/disconnect")
+def gmail_disconnect(request: Request, response: Response) -> dict[str, bool]:
+    """Revoke the Google credential and clear the Haq session cookie."""
+    session_id = _session_id(request)
+    session = GMAIL_SESSIONS.pop(session_id or "", None)
+    if session and session.get("access_token"):
+        try:
+            import urllib.request
+
+            urllib.request.urlopen(
+                "https://oauth2.googleapis.com/revoke?token=" + str(session["access_token"]),
+                timeout=8,
+            )
+        except Exception:
+            pass
+    response.delete_cookie(SESSION_COOKIE)
+    return {"disconnected": True}
 
 
 @app.get("/v1/registry")
@@ -133,6 +254,14 @@ def registry_entry(right_id: str) -> dict[str, Any]:
 def ingest(payload: IngestRequest) -> dict[str, Any]:
     """Parse pasted text, bank alerts, or document rows in memory with zero storage."""
     text = payload.text or ""
+    if text.strip().lower() == "synthetic demo":
+        return {
+            "status": "stub",
+            "mode": "demo",
+            "stamp": "UNVERIFIED RULE",
+            "parse_report": {"accepted": False, "reason": "Synthetic fixture only"},
+            "transactions": [],
+        }
     if text:
         parsed_txns, warnings = parse_alert_text(text)
         if parsed_txns:
@@ -190,8 +319,8 @@ def ingest(payload: IngestRequest) -> dict[str, Any]:
 @app.post("/v1/detect")
 def detect(payload: DetectRequest) -> dict[str, Any]:
     return {
-        "status": "success",
-        "mode": "live",
+        "status": "stub",
+        "mode": "demo",
         "candidates": payload.transactions or [],
         "input_rows": len(payload.transactions),
     }
@@ -210,7 +339,21 @@ def compute_payment(payload: PaymentComputeRequest) -> dict[str, Any]:
             "message": "Confirm the event details before statutory calculation is finalized.",
         }
 
-    resolution = payload.reversal_date or date.today()
+    if payload.reversal_date is None:
+        return {
+            "right_id": payload.right_id,
+            "mode": "demo",
+            "stamp": "UNVERIFIED RULE",
+            "deadline": deadline.isoformat(),
+            "delay_days": {"low": 0, "high": 0},
+            "amount_paise": {"low": 0, "high": 0},
+            "unresolved": ["reversal_day_counts"],
+            "conflicts": ["C5"],
+            "confidence": "Low",
+            "trace": [],
+        }
+
+    resolution = payload.reversal_date
     low_paise, high_paise = compute_range(deadline, resolution, per_day_paise=10000)
     low_days = delay_days(deadline, resolution, count_resolution_day=False)
     high_days = delay_days(deadline, resolution, count_resolution_day=True)
@@ -268,6 +411,7 @@ def compute_msme(payload: MsmeComputeRequest) -> dict[str, Any]:
         "right_id": "R-007",
         "mode": "live",
         "stamp": "STATUTORY MSMED RULE",
+        "illustrative": True,
         "principal_paise": payload.amount_paise,
         "statutory_due_date": due.isoformat(),
         "days_overdue": overdue_days,
@@ -370,7 +514,7 @@ def claims_draft(payload: ClaimDraftRequest) -> dict[str, Any]:
     return {
         "status": "success",
         "mode": "live",
-        "stamp": "STATUTORY CLAIM DRAFT",
+        "stamp": "UNVERIFIED RULE",
         "draft": draft_text,
         "evidence_checklist": [
             "Bank statement or alert extract showing the failed debit",

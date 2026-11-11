@@ -37,10 +37,8 @@ class ClassifyResponse(BaseModel):
 
 
 class GmailScanRequest(BaseModel):
-    access_token: str | None = None
     query: str | None = None
     max_results: int = Field(default=50, ge=1, le=100)
-    use_live: bool = False
 
 
 class IngestRequest(BaseModel):
