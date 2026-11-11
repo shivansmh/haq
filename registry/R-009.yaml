@@ -1,0 +1,40 @@
+id: R-009
+name: MSME dispute route
+beneficiary: micro or small supplier
+obligated_party: buyer
+sources:
+- instrument: Primary source to confirm from Research SOP seed entry
+  clause: to be confirmed
+  url: null
+  tier: 1
+  publication_date: null
+  date_read: '2026-11-11'
+trigger:
+  event_type: invoice_unpaid
+  description: Supplier seeks the statutory dispute route for a delayed payment
+clock:
+  start_event: null
+  offset: null
+  unit: null
+  weekends_count: null
+  holidays_count: null
+  reversal_day_counts: null
+amount:
+  type: none
+  parameters: {}
+  cap_paise: null
+exceptions:
+- See primary source and legal review; not encoded at seed stage.
+escalation_ladder: []
+evidence_needed:
+- User-provided supporting records; exact evidence list requires verification.
+claim_time_limit: null
+verification:
+  last_verified: '2026-11-11'
+  confidence: Low
+  status: Seeded
+  peer_checker: null
+worked_examples: []
+open_questions:
+- Primary text, exceptions, filing window and exact computation require verification.
+conflict_ids: []

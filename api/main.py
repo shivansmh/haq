@@ -7,7 +7,9 @@ from uuid import uuid4
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
 
-from .fixtures import REGISTRY_SUMMARY, health_payload
+from engine.registry_loader import load_registry
+
+from .fixtures import health_payload
 from .schemas import (
     ClaimDraftRequest,
     DetectRequest,
@@ -17,10 +19,16 @@ from .schemas import (
     PaymentComputeRequest,
 )
 
+REGISTRY = load_registry()
+
+
 app = FastAPI(
     title="Haq API",
-    version="0.1.0-t0",
-    description="Contract-first T0 stub. Demo fixtures only; no legal calculation or persistence.",
+    version="0.1.0-t1",
+    description=(
+        "T1 registry-backed stub. Seeded research data only; "
+        "no legal calculation or persistence."
+    ),
 )
 
 
@@ -39,27 +47,47 @@ async def http_error(request: Request, exc: HTTPException) -> JSONResponse:
 
 @app.get("/healthz")
 def healthz() -> dict[str, Any]:
-    return health_payload()
+    payload = health_payload()
+    payload["registry"] = {
+        "loaded": len(REGISTRY.all()),
+        "verified": sum(entry.status == "Verified" for entry in REGISTRY.all()),
+        "seeded": sum(entry.status == "Seeded" for entry in REGISTRY.all()),
+        "parked": sum(entry.status == "Parked" for entry in REGISTRY.all()),
+    }
+    return payload
 
 
 @app.get("/v1/registry")
 def registry() -> dict[str, Any]:
-    return {"items": [item.model_dump() for item in REGISTRY_SUMMARY], "mode": "demo"}
+    return {
+        "items": [
+            {
+                "id": entry.id,
+                "name": entry.name,
+                "status": entry.status,
+                "confidence": entry.confidence,
+            }
+            for entry in REGISTRY.all()
+        ],
+        "mode": "demo",
+    }
 
 
 @app.get("/v1/registry/{right_id}")
 def registry_entry(right_id: str) -> dict[str, Any]:
-    item = next((item for item in REGISTRY_SUMMARY if item.id == right_id), None)
-    if item is None:
-        raise HTTPException(status_code=404, detail=f"Unknown registry entry: {right_id}")
+    try:
+        entry = REGISTRY.get(right_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
     return {
-        "id": item.id,
-        "name": item.name,
-        "status": item.status,
-        "confidence": item.confidence,
-        "sources": [],
-        "conflicts": ["C5"] if right_id == "R-001" else [],
-        "note": "T1 registry entry not yet verified; this is a contract fixture.",
+        "id": entry.id,
+        "name": entry.name,
+        "status": entry.status,
+        "confidence": entry.confidence,
+        "sources": [source.model_dump(mode="json") for source in entry.sources],
+        "conflicts": entry.conflict_ids,
+        "unresolved": entry.unresolved_fields(),
+        "note": "Registry data is seeded and unverified until the research gates pass.",
     }
 
 

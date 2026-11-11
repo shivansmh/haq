@@ -15,11 +15,15 @@ def test_health_contract() -> None:
 def test_registry_contract() -> None:
     response = client.get("/v1/registry")
     assert response.status_code == 200
-    assert {item["id"] for item in response.json()["items"]} == {"R-001", "R-007"}
+    assert len(response.json()["items"]) == 16
+    assert {item["id"] for item in response.json()["items"]} >= {"R-001", "R-007", "R-016"}
 
 
 def test_registry_entry_and_unknown_entry() -> None:
-    assert client.get("/v1/registry/R-001").status_code == 200
+    entry = client.get("/v1/registry/R-001")
+    assert entry.status_code == 200
+    assert entry.json()["status"] == "Seeded"
+    assert "clock.weekends_count" in entry.json()["unresolved"]
     assert client.get("/v1/registry/R-404").status_code == 404
 
 
