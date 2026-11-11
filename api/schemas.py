@@ -68,6 +68,7 @@ class MsmeComputeRequest(BaseModel):
     amount_paise: int = Field(gt=0)
     written_agreement: bool = False
     agreed_days: int | None = Field(default=None, ge=0, le=45)
+    mode: Literal["demo", "live"] = "demo"
 
 
 class GuideRequest(BaseModel):

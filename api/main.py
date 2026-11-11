@@ -11,7 +11,7 @@ from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, RedirectResponse
 
-from engine.calculators.msme import msme_due_date, msme_interest
+from engine.calculators.msme import msme_due_date
 from engine.classifier import classify_prompt
 from engine.delay import compute_range, delay_days
 from engine.registry_loader import load_registry
@@ -411,31 +411,30 @@ def compute_payment(payload: PaymentComputeRequest) -> dict[str, Any]:
 
 @app.post("/v1/compute/msme")
 def compute_msme(payload: MsmeComputeRequest) -> dict[str, Any]:
+    registry_entry = REGISTRY.get("R-007")
+    if payload.mode == "live" and registry_entry.status != "Verified":
+        raise HTTPException(
+            status_code=409,
+            detail="R-007 is Seeded; live MSME computation is blocked until verification.",
+        )
     due = msme_due_date(payload.acceptance_date, payload.written_agreement, payload.agreed_days or 45)
     today = payload.payment_date or date.today()
     overdue_days = max(0, (today - due).days)
 
-    interest_paise = msme_interest(payload.amount_paise, overdue_days, bank_rate_pct=6.5)
-    registry_entry = REGISTRY.get("R-007")
-    verified = registry_entry.status == "Verified" and not registry_entry.unresolved_fields()
-
     return {
         "status": "success",
         "right_id": "R-007",
-        "mode": "live",
-        "stamp": "STATUTORY MSMED RULE" if verified else "UNVERIFIED RULE",
-        "illustrative": not verified,
+        "mode": payload.mode,
+        "stamp": "UNVERIFIED RULE",
+        "illustrative": True,
         "principal_paise": payload.amount_paise,
         "statutory_due_date": due.isoformat(),
         "days_overdue": overdue_days,
-        "bank_rate_pct": 6.5,
-        "statutory_rate_pct": 19.5,
-        "interest_paise": interest_paise,
-        "total_claim_paise": payload.amount_paise + interest_paise,
-        "tax_disallowance_note": (
-            "Under Section 43B(h) / Section 37(2)(g) of the Income-tax Act, the buyer cannot "
-            "claim tax deduction for this unpaid invoice until payment is actually made."
-        ),
+        "bank_rate_pct": None,
+        "statutory_rate_pct": None,
+        "interest_paise": None,
+        "total_claim_paise": None,
+        "tax_disallowance_note": "The registry does not yet contain a verified interest-rate or tax treatment rule.",
         "trace": [
             {
                 "step": 1,
@@ -451,15 +450,9 @@ def compute_msme(payload: MsmeComputeRequest) -> dict[str, Any]:
             },
             {
                 "step": 3,
-                "text": "Statutory interest rate: 3 × RBI Bank Rate (3 × 6.50% = 19.50% p.a.) compound monthly.",
-                "clause": "MSMED Act 2006, Section 16",
-                "inputs": {"rate": "19.50%"},
-            },
-            {
-                "step": 4,
-                "text": f"Statutory interest calculated at ₹{interest_paise // 100:,}, total claim ₹{(payload.amount_paise + interest_paise) // 100:,}.",
-                "clause": "Section 16 Compounding Schedule",
-                "inputs": {"interest_paise": interest_paise, "total_paise": payload.amount_paise + interest_paise},
+                "text": "The registry does not contain a verified interest computation for this entry.",
+                "clause": "R-007 verification gate",
+                "inputs": {},
             },
         ],
     }
