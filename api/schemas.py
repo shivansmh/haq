@@ -5,6 +5,8 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
+LLMStatus = Literal["disabled", "unavailable", "timeout", "invalid_output", "ok"]
+
 
 class ErrorResponse(BaseModel):
     code: str
@@ -34,6 +36,7 @@ class ClassifyResponse(BaseModel):
     suggested_route: str
     extracted_entities: dict[str, Any]
     prompt: str
+    llm_status: LLMStatus | None = None
 
 
 class GmailScanRequest(BaseModel):

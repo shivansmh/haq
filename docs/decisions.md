@@ -21,3 +21,24 @@ Open decisions are not silently resolved. Each convention must cite its source a
 - **Synthetic evaluation revision:** failed-payment precision is not a valid parser metric because a statement cannot prove failure. T2 evaluation now records pairing accuracy against `expected_label` and true-failure candidate coverage against `is_true_failure`.
 - **Synthetic baseline:** the supplied 20-statement, four-layout corpus yields 100% pairing accuracy and 80% true-failure candidate coverage. These are synthetic-only figures, not the real-data gate.
 - **UPI references:** slash-delimited 12-digit UPI references and the labelled synthetic `reference` column are safe test identifiers; the scanner exempts only those contexts and continues to flag PAN, grouped Aadhaar, email, phone and other long digit patterns.
+
+## 2026-11-12 — a1-config-schema
+
+- **LLM rollout:** the provider-agnostic client is disabled by default through `LLM_ENABLED=false`; this follows LLM SOP v2 section 7 and preserves deterministic-only user results until a later rollout decision.
+- **LLM trust:** extracted values default to `llm_suggestion`; `deterministic` and `user_confirmed` remain explicit tiers, and no LLM tier is treated as legal authority.
+- **Evidence contract:** every non-null extracted amount or date requires a bounded source quote; references also require normalized presence in the supplied bounded message. This mirrors SOP v2 sections 5 and 9.
+- **Date range:** schema validation accepts evidence dates from 2000-01-01 through 2100-12-31. The bounds are defensive parsing limits, not legal assumptions, and can be revisited with a dated decision.
+- **Quote limit:** source quotes are capped at 240 characters while message bodies remain capped at 8,000 characters, preserving the SOP's bounded-message rule without returning raw bodies.
+- **Status propagation:** `llm_status` is optional in the existing classification response and uses only `disabled`, `unavailable`, `timeout`, `invalid_output`, or `ok`; existing response fields remain unchanged.
+- **Provider scope:** this task intentionally adds no network provider, OAuth handling, environment enabling, prompt transport, or persistence.
+
+## 2026-11-12 — a2-redaction
+
+- **Redaction order:** reference, amount, date, and contextual UPI spans are identified before generic identifier masks. This preserves evidence while preventing 12-digit UPI references from being mistaken for Aadhaar-shaped data.
+- **Reference policy:** a 12-digit value is preserved only between slashes or after explicit `reference`, `ref`, `RRN`, `transaction`, or `txn` context. A standalone 12-digit value is conservatively masked.
+- **Amount policy:** a 10-digit amount is preserved only when attached to `₹`, `Rs`, or `INR` context. A standalone 10-digit value is treated as phone/account-like and masked.
+- **Token-map lifetime:** redaction maps are immutable in-memory mappings attached only to the transient preparation result. The provider payload contains no map field and there is no serialization function for maps.
+- **Payload cap:** the configured character cap applies to the combined subject, snippet, and body text after redaction; sender and timestamp remain bounded by the Pydantic payload model. No body is logged.
+- **Credential handling:** bearer, Google access/refresh-token-shaped, and explicit `access_token`/`refresh_token` inputs fail closed before redaction rather than being forwarded or logged.
+- **AI provider choice:** no provider decision is needed for a2 because this task adds no provider call. Provider selection must be made before implementing the first real adapter.
+- **Redactor boundary:** `clean/redact.py` keeps its existing string-returning contract for statement normalization; `llm/redact.py` is a separate provenance-aware boundary because changing the clean contract would regress deterministic parsing and the LLM path needs an immutable token map.
