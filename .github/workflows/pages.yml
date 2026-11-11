@@ -36,7 +36,7 @@ jobs:
       - name: Build frontend
         working-directory: web
         env:
-          VITE_API_BASE_URL: ${{ vars.HAQ_API_URL }}
+          VITE_API_BASE_URL: ${{ vars.HAQ_API_URL || 'https://haq-api-u3pz.onrender.com' }}
         run: npm run build
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
