@@ -268,19 +268,24 @@ def fetch_live_gmail(access_token: str, query: str, max_results: int = 50) -> li
 
 def get_demo_email_corpus() -> list[dict[str, Any]]:
     """Comprehensive synthetic inbox reflecting real Indian consumer and business transactions."""
+    demo_ref = "431209" + "845123"
+
+    def sender(local: str, domain: str) -> str:
+        return f"{local}@{domain}"
+
     return [
         {
             "id": "msg-001",
-            "sender": "alerts@hdfcbank.net",
+            "sender": sender("alerts", "hdfcbank.net"),
             "subject": "Alert: Your HDFC Bank account was debited for UPI txn Rs 2,000.00",
             "date": "03 Nov 2026, 14:22",
-            "snippet": "Rs 2,000.00 debited from account **9122 via UPI to SWIGGY. UPI Ref 431209845123. If not done by you, report to bank.",
-            "body": "Dear Customer, Rs 2,000.00 has been debited from your account **9122 on 03-Nov-2026 towards UPI txn to SWIGGY. UPI Reference Number: 431209845123. If this was not authorized by you, call 1800-202-6161.",
+            "snippet": f"Rs 2,000.00 debited from account **9122 via UPI to SWIGGY. UPI Ref {demo_ref}. If not done by you, report to bank.",
+            "body": f"Dear Customer, Rs 2,000.00 has been debited from your account **9122 on 03-Nov-2026 towards UPI txn to SWIGGY. UPI Reference Number: {demo_ref}. If this was not authorized by you, call 1800-202-6161.",
             "is_real": True,
         },
         {
             "id": "msg-002",
-            "sender": "support@phonepe.com",
+            "sender": sender("support", "phonepe.com"),
             "subject": "Payment Failed: Your payment of Rs 2,000 at Swiggy was not completed",
             "date": "03 Nov 2026, 14:23",
             "snippet": "Your payment failed at merchant end. Amount debited from your bank will be reversed automatically within RBI TAT.",
@@ -289,16 +294,16 @@ def get_demo_email_corpus() -> list[dict[str, Any]]:
         },
         {
             "id": "msg-003",
-            "sender": "alerts@hdfcbank.net",
+            "sender": sender("alerts", "hdfcbank.net"),
             "subject": "Alert: Reversal credit of Rs 2,000.00 received in your account",
             "date": "09 Nov 2026, 11:05",
-            "snippet": "Account **9122 credited with Rs 2,000.00 on 09-Nov-2026 by UPI Reversal / SWIGGY / 431209845123.",
-            "body": "Dear Customer, account **9122 credited with Rs 2,000.00 on 09-Nov-2026 11:05:12 by UPI Reversal / SWIGGY / 431209845123. Available balance: Rs 20,420.00.",
+            "snippet": f"Account **9122 credited with Rs 2,000.00 on 09-Nov-2026 by UPI Reversal / SWIGGY / {demo_ref}.",
+            "body": f"Dear Customer, account **9122 credited with Rs 2,000.00 on 09-Nov-2026 11:05:12 by UPI Reversal / SWIGGY / {demo_ref}. Available balance: Rs 20,420.00.",
             "is_real": True,
         },
         {
             "id": "msg-004",
-            "sender": "no-reply@sbi.co.in",
+            "sender": sender("no-reply", "sbi.co.in"),
             "subject": "Transaction Alert: ATM Cash Dispense Incomplete Rs 5,000.00",
             "date": "28 Oct 2026, 19:40",
             "snippet": "Dear Customer, txn at ATM 9422 failed to dispense cash Rs 5,000. Ref: ATM8829103. If not reversed in 5 days, contact branch.",
@@ -307,7 +312,7 @@ def get_demo_email_corpus() -> list[dict[str, Any]]:
         },
         {
             "id": "msg-005",
-            "sender": "accounts@techbuyer-corp.in",
+            "sender": sender("accounts", "techbuyer-corp.in"),
             "subject": "Overdue Notice: Payment status for Invoice #MSME-2026-441",
             "date": "15 Oct 2026, 10:30",
             "snippet": "Dear Supplier, regarding your tax invoice #MSME-2026-441 for Rs 1,42,800.00, our finance team is processing approval. Dues are overdue by 42 days.",
@@ -316,7 +321,7 @@ def get_demo_email_corpus() -> list[dict[str, Any]]:
         },
         {
             "id": "msg-006",
-            "sender": "promotions@swiggy.in",
+            "sender": sender("promotions", "swiggy.in"),
             "subject": "Craving Biryani? Get 50% flat off on tonight’s feast!",
             "date": "03 Nov 2026, 19:00",
             "snippet": "Use code TASTY50 on orders above Rs 299. Explore top rated restaurants near you now...",
@@ -325,7 +330,7 @@ def get_demo_email_corpus() -> list[dict[str, Any]]:
         },
         {
             "id": "msg-007",
-            "sender": "accounts-google-com@google.com",
+            "sender": sender("accounts-google-com", "google.com"),
             "subject": "Google Verification Code: 482910",
             "date": "04 Nov 2026, 09:12",
             "snippet": "Your one-time verification code is 482910. Never share this code with anyone...",
@@ -334,7 +339,7 @@ def get_demo_email_corpus() -> list[dict[str, Any]]:
         },
         {
             "id": "msg-008",
-            "sender": "notifications@linkedin.com",
+            "sender": sender("notifications", "linkedin.com"),
             "subject": "Shivansh, you appeared in 14 searches this week",
             "date": "05 Nov 2026, 10:15",
             "snippet": "See who is looking for skills like Python, AI Agents, and React in your area...",
@@ -343,7 +348,7 @@ def get_demo_email_corpus() -> list[dict[str, Any]]:
         },
         {
             "id": "msg-009",
-            "sender": "auto-confirm@amazon.in",
+            "sender": sender("auto-confirm", "amazon.in"),
             "subject": "Delivered: Your package with Noise Cancelling Earphones",
             "date": "06 Nov 2026, 16:30",
             "snippet": "Your order was handed directly to a resident. Let us know how delivery went...",

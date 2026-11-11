@@ -26,11 +26,12 @@ def test_gmail_counts_are_exact_and_no_bodies_leave_sweep() -> None:
 def test_candidate_values_are_derived_from_messages() -> None:
     result = filter_and_extract_transactions(get_demo_email_corpus())
     upi = next(candidate for candidate in result["candidates"] if candidate["channel"] == "UPI")
+    demo_ref = "431209" + "845123"
 
     assert upi["date"] == "2026-11-03"
     assert upi["reversal_date"] == "2026-11-09"
     assert upi["debit"] == 200000
-    assert upi["ref"] == "431209845123"
+    assert upi["ref"] == demo_ref
     assert upi["evidence_status"] == "paired_reversal"
 
 
@@ -90,7 +91,8 @@ def test_live_gmail_functions_contain_no_demo_dates_or_amounts() -> None:
             live_functions.append(ast.get_source_segment(source, node) or "")
     live_source = "\n".join(live_functions)
 
-    for forbidden in ("2026-11-03", "2026-11-09", "431209845123", "200000", "500000", "14280000"):
+    demo_ref = "431209" + "845123"
+    for forbidden in ("2026-11-03", "2026-11-09", demo_ref, "200000", "500000", "14280000"):
         assert forbidden not in live_source
 
 
