@@ -10,3 +10,11 @@
 - **Branching:** work for this task is committed directly to `main` as requested; future phase work should use reviewed feature branches if branch protection is enabled.
 
 Open decisions are not silently resolved. Each convention must cite its source and date when decided.
+
+## 2026-11-11 — T2 initial data layer
+
+- **Initial scope:** deterministic CSV and pasted-alert ingestion; PDF and bank-specific adapters remain next steps.
+- **Money:** normalized to integer paise; no floating-point amounts enter pairing.
+- **Candidate semantics:** an unreversed or ambiguous debit is only a suggestion; user confirmation is required before computation.
+- **Accuracy targets:** the plan's 98% parse, 95% balance-chain, 90% recall and 85% precision targets are not claimed until five genuinely redacted statements per target bank are available.
+- **Needed research material:** redacted statements and expected candidate labels, with bank names and layout metadata but no identifiers.
