@@ -38,6 +38,7 @@ from .schemas import (
 
 REGISTRY = load_registry()
 FRONTEND_ORIGIN = os.getenv("FRONTEND_ORIGIN", "http://localhost:5173").rstrip("/")
+FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173").rstrip("/")
 OAUTH_REDIRECT_URI = os.getenv("OAUTH_REDIRECT_URI", "http://localhost:8000/v1/gmail/callback")
 COOKIE_SECURE = os.getenv("COOKIE_SECURE", "false").lower() == "true"
 SESSION_COOKIE = "haq_session"
@@ -155,9 +156,9 @@ def gmail_callback(
     """Exchange Google's authorization code server-side and return to the Pages app."""
     state_data = OAUTH_STATES.pop(state or "", None)
     if not state_data or time.time() - float(state_data["created_at"]) > 600:
-        return RedirectResponse(f"{FRONTEND_ORIGIN}/?gmail=error&reason=invalid_state", status_code=303)
+        return RedirectResponse(f"{FRONTEND_URL}/?gmail=error&reason=invalid_state", status_code=303)
     if error or not code:
-        return RedirectResponse(f"{FRONTEND_ORIGIN}/?gmail=denied", status_code=303)
+        return RedirectResponse(f"{FRONTEND_URL}/?gmail=denied", status_code=303)
     tokens = exchange_code_for_tokens(
         code,
         os.getenv("GOOGLE_CLIENT_ID", ""),
@@ -165,13 +166,13 @@ def gmail_callback(
         OAUTH_REDIRECT_URI,
     )
     if tokens.get("error") or not tokens.get("access_token"):
-        return RedirectResponse(f"{FRONTEND_ORIGIN}/?gmail=error&reason=token_exchange", status_code=303)
+        return RedirectResponse(f"{FRONTEND_URL}/?gmail=error&reason=token_exchange", status_code=303)
     session_id = str(state_data["session_id"])
     GMAIL_SESSIONS[session_id] = {
         **tokens,
         "expires_at": time.time() + int(tokens.get("expires_in", 3600)),
     }
-    response = RedirectResponse(f"{FRONTEND_ORIGIN}/?gmail=connected", status_code=303)
+    response = RedirectResponse(f"{FRONTEND_URL}/?gmail=connected", status_code=303)
     _set_session_cookie(response, session_id)
     return response
 

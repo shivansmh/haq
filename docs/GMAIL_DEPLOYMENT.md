@@ -23,8 +23,9 @@ The public app also needs a same-domain privacy-policy URL that explains that Gm
 1. Create a new Render Web Service from this repository and use `render.yaml`, or enter `pip install -r requirements.txt` as the build command and `uvicorn api.main:app --host 0.0.0.0 --port $PORT` as the start command.
 2. Add `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` as secrets.
 3. Set `OAUTH_REDIRECT_URI` to `https://YOUR-API-HOST/v1/gmail/callback`.
-4. Set `FRONTEND_ORIGIN` to `https://shivansmh.github.io` (or the exact frontend origin used by the deployment).
-5. Set `COOKIE_SECURE=true`.
+4. Set `FRONTEND_ORIGIN` to `https://shivansmh.github.io` (origin only, no `/haq`).
+5. Set `FRONTEND_URL` to `https://shivansmh.github.io/haq` (the full Pages URL).
+6. Set `COOKIE_SECURE=true`.
 
 The OAuth session store is intentionally in memory for the hackathon demo. For a multi-instance production service, replace it with encrypted server-side session storage and rotate/revoke refresh tokens on disconnect.
 
