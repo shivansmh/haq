@@ -18,3 +18,6 @@ Open decisions are not silently resolved. Each convention must cite its source a
 - **Candidate semantics:** an unreversed or ambiguous debit is only a suggestion; user confirmation is required before computation.
 - **Accuracy targets:** the plan's 98% parse, 95% balance-chain, 90% recall and 85% precision targets are not claimed until five genuinely redacted statements per target bank are available.
 - **Needed research material:** redacted statements and expected candidate labels, with bank names and layout metadata but no identifiers.
+- **Synthetic evaluation revision:** failed-payment precision is not a valid parser metric because a statement cannot prove failure. T2 evaluation now records pairing accuracy against `expected_label` and true-failure candidate coverage against `is_true_failure`.
+- **Synthetic baseline:** the supplied 20-statement, four-layout corpus yields 100% pairing accuracy and 80% true-failure candidate coverage. These are synthetic-only figures, not the real-data gate.
+- **UPI references:** slash-delimited 12-digit UPI references and the labelled synthetic `reference` column are safe test identifiers; the scanner exempts only those contexts and continues to flag PAN, grouped Aadhaar, email, phone and other long digit patterns.

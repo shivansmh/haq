@@ -1,13 +1,17 @@
 {
   "generated_at": "2026-11-11",
-  "dataset": "deterministic synthetic scenarios",
-  "scenario_count": 4,
-  "scenarios_passing": 4,
-  "parse_rows_expected": 6,
-  "parse_rows_observed": 6,
-  "candidate_labels_expected": 2,
-  "candidate_labels_observed": 2,
-  "synthetic_accuracy": 1.0,
-  "real_statement_targets_claimed": false,
-  "note": "Synthetic-only result. Five genuinely redacted statements per target bank are still required before claiming the T2 targets on real data."
+  "data_origin": "synthetic",
+  "statement_count": 20,
+  "layout_count": 4,
+  "layout_names": ["alpha", "beta", "gamma", "delta"],
+  "labelled_debit_rows": 640,
+  "parsed_debit_rows": 640,
+  "running_balance_valid_statements": 20,
+  "scanner_clean_statements": 20,
+  "pairing_accuracy": 1.0,
+  "true_failure_rows": 100,
+  "true_failure_rows_surfaced_as_candidates": 80,
+  "true_failure_candidate_coverage": 0.8,
+  "interpretation": "Synthetic-only. On-time reversals are intentionally not surfaced; late and never-reversed failure rows are surfaced.",
+  "real_statement_targets_claimed": false
 }

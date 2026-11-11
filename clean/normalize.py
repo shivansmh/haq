@@ -8,7 +8,15 @@ from engine.transactions import TransactionModel
 
 from .redact import redact_sensitive
 
-DATE_FORMATS = ("%d/%m/%Y", "%d/%m/%y", "%d-%b-%Y", "%d-%m-%Y")
+DATE_FORMATS = (
+    "%d/%m/%Y",
+    "%d/%m/%y",
+    "%d-%b-%Y",
+    "%d-%b-%y",
+    "%d %b %Y",
+    "%d-%m-%Y",
+    "%Y-%m-%d",
+)
 
 
 def parse_date(value: str) -> date:

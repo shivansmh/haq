@@ -1,7 +1,6 @@
 from clean.normalize import normalize_row, parse_money
 from clean.redact import redact_sensitive
 from clean.validate import dedupe_transactions, running_balance_ok
-from data.synthetic.generator import build_scenarios
 from ingest.csv_reader import parse_csv
 from ingest.paste_parser import parse_alert_text
 from match.classify import classify
@@ -64,9 +63,3 @@ def test_running_balance_and_deduplication() -> None:
     )
     assert running_balance_ok([first, second]) is True
     assert len(dedupe_transactions([first, first, second])) == 2
-
-
-def test_synthetic_expected_candidate_counts() -> None:
-    for scenario in build_scenarios():
-        transactions = [classify(item) for item in parse_csv(scenario.csv_text, scenario.name)]
-        assert len(pair_transactions(transactions)) == scenario.expected_candidate_count
