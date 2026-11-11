@@ -29,6 +29,11 @@ export default function App() {
   const [attachedFile, setAttachedFile] = useState<File | null>(null);
   const [classification, setClassification] = useState<ClassifyResult | null>(null);
 
+  // Airfairness-style Sweep Modal & Auth State
+  const [showSweepModal, setShowSweepModal] = useState(false);
+  const [customToken, setCustomToken] = useState('');
+  const [isLiveToken, setIsLiveToken] = useState(false);
+
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [candidates, setCandidates] = useState<Transaction[]>([]);
   const [selected, setSelected] = useState<Transaction | null>(null);
@@ -43,7 +48,7 @@ export default function App() {
     noise: 0,
     financial: 0,
     candidates: 0,
-    currentItem: 'Connecting to Gmail API...',
+    currentItem: 'Connecting to Google OAuth 2.0 API...',
   });
   const [scannedEmails, setScannedEmails] = useState<EmailAuditItem[]>([]);
 
@@ -68,6 +73,7 @@ export default function App() {
     setChatPrompt('');
     setAttachedFile(null);
     setClassification(null);
+    setShowSweepModal(false);
     setTransactions([]);
     setCandidates([]);
     setSelected(null);
@@ -87,7 +93,6 @@ export default function App() {
       const res = await api.classify(text, attachedFile?.name);
       setClassification(res);
 
-      // Pre-populate entities based on classification
       if (res.category === 'msme_dues') {
         const amt = res.extracted_entities.amount_inr || 142800;
         setMsmeForm((prev) => ({ ...prev, amount: amt }));
@@ -116,20 +121,23 @@ export default function App() {
     }
   };
 
-  // 2. Launch Gmail Auto-Scan
-  const handleStartGmailScan = async () => {
-    go('gmail-scan');
+  // 2. Launch Airfairness-style Gmail Sweep
+  const handleStartGmailSweep = async (tokenToUse?: string) => {
+    setShowSweepModal(false);
+    go('gmail-sweep');
     setLoading(true);
     try {
+      const token = tokenToUse || customToken;
       const res = await api.scanGmail((p) => {
         setScanProgress(p);
-      });
+      }, token);
+      setIsLiveToken(res.isLiveToken);
       setScannedEmails(res.emails);
       setTransactions(res.transactions);
       setCandidates(res.candidates);
       setSelected(res.candidates[0] || null);
     } catch {
-      setError('Gmail session failed to read notifications. Please retry.');
+      setError('Gmail sweep encountered an authorization error. Please check your token or run in demo mode.');
     } finally {
       setLoading(false);
     }
@@ -186,8 +194,8 @@ export default function App() {
           </button>
 
           <div className="nav-links">
-            <button className="nav-item" onClick={handleStartGmailScan}>
-              Scan Gmail
+            <button className="nav-item" onClick={() => setShowSweepModal(true)}>
+              ⚡ Sweep Gmail
             </button>
             <button className="nav-item" onClick={() => go('sources')}>
               Rights Registry & Rules
@@ -210,6 +218,16 @@ export default function App() {
         </div>
       )}
 
+      {/* Airfairness-style Sweep Consent & Auth Modal */}
+      {showSweepModal && (
+        <GmailSweepModal
+          onClose={() => setShowSweepModal(false)}
+          onStartSweep={handleStartGmailSweep}
+          customToken={customToken}
+          setCustomToken={setCustomToken}
+        />
+      )}
+
       {/* Main Screen Router */}
       {screen === 'home' && (
         <HomeScreen
@@ -219,7 +237,7 @@ export default function App() {
           setAttachedFile={setAttachedFile}
           onFileAttach={handleFileAttach}
           onSubmit={handleSubmitPrompt}
-          onStartGmail={handleStartGmailScan}
+          onOpenSweepModal={() => setShowSweepModal(true)}
           loading={loading}
           classification={classification}
           onProceed={(cat) => {
@@ -230,13 +248,14 @@ export default function App() {
         />
       )}
 
-      {screen === 'gmail-scan' && (
-        <GmailScanScreen
+      {screen === 'gmail-sweep' && (
+        <GmailSweepScreen
           loading={loading}
           progress={scanProgress}
           emails={scannedEmails}
+          isLiveToken={isLiveToken}
           onReview={() => go('candidates')}
-          onRetry={handleStartGmailScan}
+          onRetry={() => setShowSweepModal(true)}
         />
       )}
 
@@ -290,6 +309,150 @@ export default function App() {
 }
 
 /* =========================================================================
+   AIRFAIRNESS-STYLE GMAIL SWEEP AUTHENTICATION & CONSENT MODAL
+   ========================================================================= */
+function GmailSweepModal({
+  onClose,
+  onStartSweep,
+  customToken,
+  setCustomToken,
+}: {
+  onClose: () => void;
+  onStartSweep: (token?: string) => void;
+  customToken: string;
+  setCustomToken: (v: string) => void;
+}) {
+  const [showAdvanced, setShowAdvanced] = useState(false);
+
+  return (
+    <div
+      style={{
+        position: 'fixed',
+        inset: 0,
+        zIndex: 100,
+        background: 'rgba(0,0,0,0.75)',
+        backdropFilter: 'blur(16px)',
+        display: 'grid',
+        placeItems: 'center',
+        padding: '20px',
+      }}
+    >
+      <div
+        style={{
+          background: 'rgba(18, 22, 34, 0.95)',
+          border: '1px solid rgba(255, 255, 255, 0.2)',
+          borderRadius: '24px',
+          maxWidth: '560px',
+          width: '100%',
+          padding: '32px',
+          boxShadow: '0 24px 70px rgba(0,0,0,0.8), 0 0 50px rgba(99, 102, 241, 0.25)',
+          position: 'relative',
+        }}
+      >
+        <button
+          onClick={onClose}
+          style={{
+            position: 'absolute',
+            top: '20px',
+            right: '20px',
+            background: 'none',
+            border: 'none',
+            color: '#94a3b8',
+            fontSize: '18px',
+            cursor: 'pointer',
+          }}
+        >
+          ✕
+        </button>
+
+        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '4px 12px', borderRadius: '9999px', background: 'rgba(99, 102, 241, 0.15)', border: '1px solid rgba(99, 102, 241, 0.3)', color: '#c7d2fe', fontSize: '11px', fontWeight: 700, marginBottom: '16px' }}>
+          <span>✦ OFFICIAL GOOGLE OAUTH 2.0 PROTOCOL</span>
+        </div>
+
+        <h2 style={{ fontSize: '24px', fontWeight: 800, color: '#fff', marginBottom: '10px' }}>
+          Sweep Your Inbox for Delayed Payments & Dues
+        </h2>
+
+        <p style={{ fontSize: '13.5px', color: '#94a3b8', lineHeight: 1.6, marginBottom: '20px' }}>
+          Like <strong>Airfairness Sweep</strong> for flights, Haq securely scans your email for financial debit alerts, failed UPI receipts, and overdue invoices to detect money owed to you under Indian law.
+        </p>
+
+        {/* Security / Scope Reassurance Card */}
+        <div style={{ background: 'rgba(255, 255, 255, 0.03)', border: '1px solid rgba(255, 255, 255, 0.1)', borderRadius: '14px', padding: '16px', marginBottom: '22px', fontSize: '12px', color: '#cbd5e1' }}>
+          <div style={{ fontWeight: 700, color: '#fff', marginBottom: '6px' }}>How your privacy is protected:</div>
+          <ul style={{ paddingLeft: '18px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            <li><strong>Restricted Scope:</strong> Only read-only permission (<code>gmail.readonly</code>) is requested.</li>
+            <li><strong>Noise Filter:</strong> Personal emails, OTPs, and promotional spam are filtered in memory and never stored.</li>
+            <li><strong>Transient Session:</strong> No refresh tokens, email bodies, or personal data are stored on any server.</li>
+            <li><strong>Revocable Anytime:</strong> Remove access whenever you want in your Google Account Security tab.</li>
+          </ul>
+        </div>
+
+        {/* Actions */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          <Button
+            variant="primary"
+            onClick={async () => {
+              // If live OAuth client is configured, open Google OAuth URL
+              try {
+                const info = await api.getGmailAuthUrl();
+                if (info.client_id_configured) {
+                  window.location.href = info.auth_url;
+                  return;
+                }
+              } catch {
+                // ignore
+              }
+              onStartSweep();
+            }}
+          >
+            <svg className="google-icon" viewBox="0 0 24 24" width="18" height="18" style={{ marginRight: '6px' }}>
+              <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+              <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+              <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
+              <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
+            </svg>
+            Connect with Google & Sweep My Inbox
+          </Button>
+
+          <Button
+            variant="secondary"
+            onClick={() => onStartSweep()}
+          >
+            ⚡ Run Instant Demo Sweep (Zero Setup)
+          </Button>
+
+          {/* Advanced Custom Token Toggle */}
+          <div style={{ marginTop: '8px', textAlign: 'center' }}>
+            <button
+              onClick={() => setShowAdvanced(!showAdvanced)}
+              style={{ background: 'none', border: 'none', color: '#64748b', fontSize: '11px', cursor: 'pointer', textDecoration: 'underline' }}
+            >
+              {showAdvanced ? 'Hide Custom Google Token Input' : 'Advanced: Paste Google OAuth Access Token directly'}
+            </button>
+          </div>
+
+          {showAdvanced && (
+            <div style={{ marginTop: '10px' }}>
+              <input
+                className="form-control"
+                placeholder="Paste Bearer Access Token (ya29...)"
+                value={customToken}
+                onChange={(e) => setCustomToken(e.target.value)}
+                style={{ fontSize: '12px' }}
+              />
+              <span style={{ fontSize: '11px', color: '#94a3b8', display: 'block', marginTop: '4px' }}>
+                If provided, Haq sweeps your real live Gmail using this token.
+              </span>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* =========================================================================
    1. HOME SCREEN (Single Chat Prompt + Auto-Classification + Floating Cards)
    ========================================================================= */
 function HomeScreen({
@@ -299,7 +462,7 @@ function HomeScreen({
   setAttachedFile,
   onFileAttach,
   onSubmit,
-  onStartGmail,
+  onOpenSweepModal,
   loading,
   classification,
   onProceed,
@@ -310,7 +473,7 @@ function HomeScreen({
   setAttachedFile: (f: File | null) => void;
   onFileAttach: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onSubmit: (text?: string) => void;
-  onStartGmail: () => void;
+  onOpenSweepModal: () => void;
   loading: boolean;
   classification: ClassifyResult | null;
   onProceed: (cat: string) => void;
@@ -336,7 +499,7 @@ function HomeScreen({
       </h1>
 
       <p className="hero-subhead">
-        Type what happened, attach any bank statement or invoice, or scan your Gmail. Haq automatically classifies the legal violation, checks turnaround deadlines, and calculates what you are owed.
+        Type what happened, attach any bank statement or invoice, or sweep your Gmail. Haq automatically classifies the legal violation, checks turnaround deadlines, and calculates what you are owed under RBI and MSMED laws.
       </p>
 
       {/* THE SINGLE CHAT PROMPT (CENTERPIECE) */}
@@ -370,7 +533,7 @@ function HomeScreen({
 
           <div className="omni-toolbar">
             <div className="toolbar-left">
-              <button className="gmail-instant-btn" onClick={onStartGmail} type="button">
+              <button className="gmail-instant-btn" onClick={onOpenSweepModal} type="button">
                 <svg className="google-icon" viewBox="0 0 24 24" width="16" height="16">
                   <path
                     fill="#4285F4"
@@ -389,7 +552,7 @@ function HomeScreen({
                     d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
                   />
                 </svg>
-                Scan Gmail Right Away
+                Sweep Gmail (Airfairness Mode)
               </button>
 
               <label className="attach-btn-label">
@@ -561,18 +724,20 @@ function HomeScreen({
 }
 
 /* =========================================================================
-   2. GMAIL LIVE SCANNER & NOISE FILTER SCREEN
+   2. GMAIL LIVE SWEEP SCREEN (Airfairness-Inspired Noise Reduction View)
    ========================================================================= */
-function GmailScanScreen({
+function GmailSweepScreen({
   loading,
   progress,
   emails,
+  isLiveToken,
   onReview,
   onRetry,
 }: {
   loading: boolean;
   progress: { total: number; noise: number; financial: number; candidates: number; currentItem: string };
   emails: EmailAuditItem[];
+  isLiveToken: boolean;
   onReview: () => void;
   onRetry: () => void;
 }) {
@@ -580,17 +745,19 @@ function GmailScanScreen({
     <div className="flow-container">
       <div className="flow-card">
         <StepHeader
-          kicker="Gmail Scanner & Noise Filter Engine"
+          kicker="Airfairness-Style Gmail Sweep Engine"
           title="Extracting Financial Signals from Inbox Noise"
         >
-          Haq connects read-only in memory to find transaction notifications and strips marketing emails, OTPs, and social newsletters.
+          {isLiveToken
+            ? 'Connected live to Google Gmail API via OAuth 2.0. Sweeping your messages with zero permanent storage.'
+            : 'Sweeping financial notifications and stripping marketing emails, OTPs, and newsletters in memory.'}
         </StepHeader>
 
         <div className="scanner-status-card">
           <div className="scanner-progress-header">
             <div className="scanner-badge">
               <span className="pulse-spinner" />
-              <span>{loading ? 'Live Scanning Inbox...' : 'Inbox Scan Complete'}</span>
+              <span>{loading ? 'Inbox Sweep in Progress...' : 'Inbox Sweep Complete'}</span>
             </div>
             <span style={{ fontSize: '12px', color: '#94a3b8' }}>
               {loading ? `${Math.round((progress.total / 1280) * 100)}%` : '100%'}
@@ -609,7 +776,7 @@ function GmailScanScreen({
           <div className="scanner-stats-grid">
             <div className="stat-tile">
               <span className="stat-number">{progress.total.toLocaleString()}</span>
-              <span className="stat-label">Emails Scanned</span>
+              <span className="stat-label">Emails Swept</span>
             </div>
             <div className="stat-tile">
               <span className="stat-number" style={{ color: '#94a3b8' }}>
@@ -637,7 +804,7 @@ function GmailScanScreen({
         {/* Live Filter Stream */}
         <div className="email-stream-section">
           <div className="section-label-row">
-            <span className="section-label">Real-Time Noise Reduction Ledger</span>
+            <span className="section-label">Real-Time Noise Reduction Stream</span>
             <span style={{ fontSize: '12px', color: '#64748b' }}>
               Showing {emails.length} categorized messages
             </span>
@@ -684,7 +851,7 @@ function GmailScanScreen({
 
         <div className="action-bar">
           <Button variant="quiet" onClick={onRetry} disabled={loading}>
-            Rescan Inbox
+            Configure / Resweep
           </Button>
 
           <Button variant="primary" onClick={onReview} disabled={loading}>

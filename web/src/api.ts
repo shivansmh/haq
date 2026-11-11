@@ -1,7 +1,6 @@
 export type Step =
   | 'home'
-  | 'classified-preview'
-  | 'gmail-scan'
+  | 'gmail-sweep'
   | 'upload'
   | 'review'
   | 'candidates'
@@ -386,6 +385,21 @@ export const mockRegistry: RegistryItem[] = [
 const wait = (ms = 180) => new Promise((resolve) => setTimeout(resolve, ms));
 
 export const api = {
+  async getGmailAuthUrl(): Promise<{ auth_url: string; client_id: string; client_id_configured: boolean }> {
+    try {
+      const res = await fetch('http://localhost:8000/v1/gmail/auth-url');
+      if (res.ok) return res.json();
+    } catch {
+      // ignore
+    }
+    return {
+      auth_url:
+        'https://accounts.google.com/o/oauth2/v2/auth?client_id=demo.apps.googleusercontent.com&redirect_uri=http://localhost:5173/auth/callback&response_type=code&scope=https://www.googleapis.com/auth/gmail.readonly',
+      client_id: 'demo',
+      client_id_configured: false,
+    };
+  },
+
   async classify(prompt: string, filename?: string): Promise<ClassifyResult> {
     const textLower = `${prompt} ${filename || ''}`.toLowerCase();
 
@@ -473,18 +487,20 @@ export const api = {
   },
 
   async scanGmail(
-    onProgress?: (progress: { total: number; noise: number; financial: number; candidates: number; currentItem: string }) => void
+    onProgress?: (progress: { total: number; noise: number; financial: number; candidates: number; currentItem: string }) => void,
+    accessToken?: string
   ): Promise<{
     emails: EmailAuditItem[];
     transactions: Transaction[];
     candidates: Transaction[];
+    isLiveToken: boolean;
   }> {
-    // Attempt backend Gmail endpoint first
+    // Attempt real backend Gmail endpoint first
     try {
       const res = await fetch('http://localhost:8000/v1/gmail/scan', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ max_results: 50 }),
+        body: JSON.stringify({ access_token: accessToken || null, max_results: 50 }),
       });
       if (res.ok) {
         const data = await res.json();
@@ -492,6 +508,7 @@ export const api = {
           emails: data.emails || mockEmails,
           transactions: mockTransactions,
           candidates: data.candidates || [mockTransactions[0], mockTransactions[2]],
+          isLiveToken: Boolean(accessToken && accessToken.trim()),
         };
       }
     } catch {
@@ -509,14 +526,14 @@ export const api = {
         candidates: i === stepsCount ? 3 : Math.min(i, 2),
         currentItem:
           i === 1
-            ? 'Filtering marketing newsletters and OTPs...'
+            ? 'Airfairness Sweep: Authenticating with Google OAuth 2.0...'
             : i === 2
-            ? 'Parsing bank alerts (HDFC, SBI, ICICI)...'
+            ? 'Querying financial alerts (HDFC, SBI, ICICI, PhonePe, Razorpay)...'
             : i === 3
-            ? 'Matching UPI RRN reference numbers...'
+            ? '3-Tier Noise Filter: Stripping OTPs, coupons, marketing digests...'
             : i === 4
-            ? 'Checking RBI TAT statutory reversal deadlines...'
-            : 'Scan completed. 3 actionable violations found.',
+            ? 'Matching UPI RRN & ATM transaction references...'
+            : 'Sweep Complete: Evaluated turnaround times under RBI TAT Circular DPSS.CO.PD No.629.',
       });
     }
 
@@ -524,6 +541,7 @@ export const api = {
       emails: mockEmails,
       transactions: mockTransactions,
       candidates: [mockTransactions[0], mockTransactions[2]],
+      isLiveToken: false,
     };
   },
 

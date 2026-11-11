@@ -3,8 +3,9 @@
 Runs directly on any standard Python 3.10+ without requiring external pip packages.
 Exposes all core endpoints:
 - POST /v1/classify: Intent auto-classification and entity extraction
-- POST /v1/gmail/scan: Gmail search, 3-tier noise filter, and violation detection
+- POST /v1/gmail/scan: Real Gmail API sweep, 3-tier noise filter, and violation detection
 - GET  /v1/gmail/auth-url: Google OAuth 2.0 authorization URL
+- POST /v1/gmail/exchange-token: Exchange OAuth code for access token
 - POST /v1/compute/payment: RBI TAT delay and statutory compensation
 - POST /v1/compute/msme: MSMED Act Sec 15 & 16 compound interest (3x Bank Rate)
 - GET  /v1/unclaimed/guide: Official portals for unclaimed assets
@@ -14,11 +15,16 @@ Exposes all core endpoints:
 from __future__ import annotations
 
 import json
+import os
+import urllib.parse
 from datetime import date, timedelta
 from http.server import BaseHTTPRequestHandler, HTTPServer
-import urllib.parse
 
-from api.gmail_service import get_google_auth_url, search_gmail
+from api.gmail_service import (
+    exchange_code_for_tokens,
+    get_google_auth_url,
+    search_gmail,
+)
 from engine.calculators.msme import msme_due_date, msme_interest
 from engine.classifier import classify_prompt
 from engine.delay import compute_range, delay_days
@@ -59,10 +65,17 @@ class HaqRequestHandler(BaseHTTPRequestHandler):
         path = parsed.path
 
         if path == "/healthz":
-            self._send_json(200, {"status": "ok", "mode": "live", "service": "haq-api", "version": "0.2.0"})
+            self._send_json(200, {"status": "ok", "mode": "live", "service": "haq-api", "version": "0.3.0"})
         elif path == "/v1/gmail/auth-url":
-            url = get_google_auth_url("demo-client-id.apps.googleusercontent.com", "http://localhost:5173/auth/callback")
-            self._send_json(200, {"auth_url": url, "client_id_configured": False})
+            client_id = os.getenv("GOOGLE_CLIENT_ID", "48291029384-haq-demo.apps.googleusercontent.com")
+            redirect_uri = "http://localhost:5173/auth/callback"
+            url = get_google_auth_url(client_id, redirect_uri)
+            self._send_json(200, {
+                "auth_url": url,
+                "client_id": client_id,
+                "client_id_configured": bool(os.getenv("GOOGLE_CLIENT_ID")),
+                "scope": "https://www.googleapis.com/auth/gmail.readonly",
+            })
         elif path == "/v1/unclaimed/guide":
             self._send_json(200, {
                 "status": "success",
@@ -89,10 +102,24 @@ class HaqRequestHandler(BaseHTTPRequestHandler):
 
         elif path == "/v1/gmail/scan":
             token = body.get("access_token")
+            # Also check Authorization header if passed
+            auth_header = self.headers.get("Authorization", "")
+            if not token and auth_header.startswith("Bearer "):
+                token = auth_header.replace("Bearer ", "").strip()
+
             query = body.get("query", "")
             max_res = body.get("max_results", 50)
             result = search_gmail(token, query, max_res)
             self._send_json(200, result)
+
+        elif path == "/v1/gmail/exchange-token":
+            code = body.get("code", "")
+            client_id = body.get("client_id") or os.getenv("GOOGLE_CLIENT_ID", "")
+            client_secret = body.get("client_secret") or os.getenv("GOOGLE_CLIENT_SECRET", "")
+            redirect_uri = body.get("redirect_uri", "http://localhost:5173/auth/callback")
+
+            tokens = exchange_code_for_tokens(code, client_id, client_secret, redirect_uri)
+            self._send_json(200, tokens)
 
         elif path == "/v1/compute/payment":
             channel = body.get("channel", "UPI")
