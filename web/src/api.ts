@@ -82,7 +82,7 @@ export const api = {
     onProgress?.('Building a source-backed review', 100);
     return result;
   },
-  async computePayment(finding: Finding): Promise<PaymentResult> {
+  async computePayment(finding: Finding, mode: 'demo' | 'live' = 'live'): Promise<PaymentResult> {
     if (!finding.date || !finding.debit) throw new Error('This finding does not contain enough dated amount evidence to calculate yet.');
     return request<PaymentResult>('/v1/compute/payment', { method: 'POST', body: JSON.stringify({
       right_id: finding.channel === 'MSME' ? 'R-007' : 'R-001',
@@ -91,6 +91,7 @@ export const api = {
       amount_paise: finding.debit,
       confirmed: true,
       channel: finding.channel,
+      mode,
     }) });
   },
   async draft(finding: Finding, result: PaymentResult): Promise<ClaimDraft> {

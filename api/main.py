@@ -322,14 +322,23 @@ def detect(payload: DetectRequest) -> dict[str, Any]:
 
 @app.post("/v1/compute/payment")
 def compute_payment(payload: PaymentComputeRequest) -> dict[str, Any]:
-    offset = 1 if payload.channel.upper() == "UPI" else 5
+    registry_entry = REGISTRY.get(payload.right_id)
+    if payload.mode == "live" and registry_entry.status != "Verified":
+        raise HTTPException(
+            status_code=409,
+            detail=f"{payload.right_id} is {registry_entry.status}; live computation is blocked until verification.",
+        )
+    offset = registry_entry.clock.offset
+    daily_rate_paise = registry_entry.amount.parameters.get("daily_rate_paise")
+    if offset is None or not isinstance(daily_rate_paise, int) or daily_rate_paise <= 0:
+        raise HTTPException(status_code=409, detail="The registry entry lacks a verified clock or amount rule.")
     deadline = payload.debit_date + timedelta(days=offset)
 
     if not payload.confirmed:
         return {
             "status": "confirmation_required",
             "right_id": payload.right_id,
-            "mode": "live",
+            "mode": payload.mode,
             "message": "Confirm the event details before statutory calculation is finalized.",
         }
 
@@ -349,23 +358,24 @@ def compute_payment(payload: PaymentComputeRequest) -> dict[str, Any]:
         }
 
     resolution = payload.reversal_date
-    low_paise, high_paise = compute_range(deadline, resolution, per_day_paise=10000)
+    low_paise, high_paise = compute_range(
+        deadline, resolution, per_day_paise=daily_rate_paise
+    )
     low_days = delay_days(deadline, resolution, count_resolution_day=False)
     high_days = delay_days(deadline, resolution, count_resolution_day=True)
-    registry_entry = REGISTRY.get(payload.right_id)
     verified = registry_entry.status == "Verified" and not registry_entry.unresolved_fields()
 
     return {
         "right_id": payload.right_id,
-        "mode": "live",
-        "stamp": "STATUTORY RBI RULE" if verified else "UNVERIFIED RULE",
-        "illustrative": not verified,
+        "mode": payload.mode,
+        "stamp": "VERIFIED RULE" if verified and payload.mode == "live" else "UNVERIFIED RULE",
+        "illustrative": payload.mode == "demo" or not verified,
         "deadline": deadline.isoformat(),
         "delay_days": {"low": low_days, "high": high_days},
         "amount_paise": {"low": low_paise, "high": high_paise},
         "unresolved": ["reversal_day_counts"],
         "conflicts": ["C5"],
-        "confidence": "High" if verified else "Low",
+        "confidence": registry_entry.confidence if verified and payload.mode == "live" else "Low",
         "source_citation": "RBI Circular DPSS.CO.PD No.629/02.01.014/2019-20",
         "trace": [
             {
@@ -388,7 +398,10 @@ def compute_payment(payload: PaymentComputeRequest) -> dict[str, Any]:
             },
             {
                 "step": 4,
-                "text": f"Statutory compensation: ₹100/day = ₹{low_paise // 100} to ₹{high_paise // 100}.",
+                "text": (
+                    f"Registry amount rule: ₹{daily_rate_paise // 100}/day = "
+                    f"₹{low_paise // 100} to ₹{high_paise // 100}."
+                ),
                 "clause": "RBI Compensation Schedule",
                 "inputs": {"daily_rate_paise": 10000, "low": low_paise, "high": high_paise},
             },

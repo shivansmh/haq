@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import ast
+from pathlib import Path
+
 from fastapi.testclient import TestClient
 
 from api.gmail_service import filter_and_extract_transactions, get_demo_email_corpus
@@ -48,12 +51,47 @@ def test_seeded_registry_never_claims_verified_high_confidence() -> None:
             "amount_paise": 200000,
             "confirmed": True,
             "channel": "UPI",
+            "mode": "demo",
         },
     ).json()
 
     assert body["stamp"] == "UNVERIFIED RULE"
     assert body["confidence"] == "Low"
     assert body["illustrative"] is True
+
+
+def test_seeded_registry_is_refused_in_live_mode() -> None:
+    response = client.post(
+        "/v1/compute/payment",
+        json={
+            "debit_date": "2026-11-03",
+            "reversal_date": "2026-11-09",
+            "amount_paise": 200000,
+            "confirmed": True,
+            "channel": "UPI",
+            "mode": "live",
+        },
+    )
+
+    assert response.status_code == 409
+    assert "Seeded" in response.json()["message"]
+
+
+def test_live_gmail_functions_contain_no_demo_dates_or_amounts() -> None:
+    path = Path(__file__).parents[1] / "api" / "gmail_service.py"
+    source = path.read_text(encoding="utf-8")
+    tree = ast.parse(source)
+    live_functions = []
+    for node in tree.body:
+        if isinstance(node, ast.FunctionDef) and node.name in {
+            "fetch_live_gmail",
+            "filter_and_extract_transactions",
+        }:
+            live_functions.append(ast.get_source_segment(source, node) or "")
+    live_source = "\n".join(live_functions)
+
+    for forbidden in ("2026-11-03", "2026-11-09", "431209845123", "200000", "500000", "14280000"):
+        assert forbidden not in live_source
 
 
 def test_classifier_uses_cautious_language() -> None:

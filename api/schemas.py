@@ -59,6 +59,7 @@ class PaymentComputeRequest(BaseModel):
     amount_paise: int = Field(gt=0)
     confirmed: bool = False
     channel: str = "UPI"
+    mode: Literal["demo", "live"] = "demo"
 
 
 class MsmeComputeRequest(BaseModel):
