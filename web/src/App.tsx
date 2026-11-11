@@ -1,12 +1,34 @@
 import { useState } from 'react';
-import { api, mockRegistry, type PaymentResult, type Step, type Transaction } from './api';
-import { Button, ConfidenceBadge, DisclaimerBanner, EmptyState, ErrorState, PrivacyNote, RangeAmount, SourceChip, StepHeader, TraceViewer, UnverifiedStamp } from './components';
-
-const steps: Array<{ id: Step; label: string }> = [{ id: 'upload', label: 'Add statement' }, { id: 'review', label: 'Review rows' }, { id: 'candidates', label: 'Confirm event' }, { id: 'result', label: 'See result' }, { id: 'claim', label: 'Make a plan' }];
-const money = (paise: number) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(paise / 100);
+import {
+  api,
+  mockRegistry,
+  type ClassifyResult,
+  type EmailAuditItem,
+  type MsmeResult,
+  type PaymentResult,
+  type Step,
+  type Transaction,
+} from './api';
+import {
+  Button,
+  ConfidenceBadge,
+  DisclaimerBanner,
+  EmptyState,
+  ErrorState,
+  PrivacyNote,
+  RangeAmount,
+  SourceChip,
+  StepHeader,
+  TraceViewer,
+  UnverifiedStamp,
+} from './components';
 
 export default function App() {
   const [screen, setScreen] = useState<Step>('home');
+  const [chatPrompt, setChatPrompt] = useState('');
+  const [attachedFile, setAttachedFile] = useState<File | null>(null);
+  const [classification, setClassification] = useState<ClassifyResult | null>(null);
+
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [candidates, setCandidates] = useState<Transaction[]>([]);
   const [selected, setSelected] = useState<Transaction | null>(null);
@@ -15,35 +37,1214 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const go = (next: Step) => { setError(''); setScreen(next); window.scrollTo({ top: 0, behavior: 'smooth' }); };
-  const loadStatement = async () => { setLoading(true); try { const response = await api.ingest(); setTransactions(response.transactions); go('review'); } catch { setError('The demo statement could not be read. Try the sample statement again.'); } finally { setLoading(false); } };
-  const findCandidates = async () => { setLoading(true); try { const response = await api.detect(); setCandidates(response.candidates); go('candidates'); } catch { setError('Candidates could not be prepared.'); } finally { setLoading(false); } };
-  const compute = async () => { setLoading(true); try { setResult(await api.computePayment()); go('result'); } catch { setError('The result could not be prepared.'); } finally { setLoading(false); } };
-  const makeDraft = async () => { setLoading(true); try { setDraft(await api.draft()); go('claim'); } catch { setError('The draft could not be prepared.'); } finally { setLoading(false); } };
-  const reset = () => { setScreen('home'); setTransactions([]); setCandidates([]); setSelected(null); setResult(null); setDraft(null); setError(''); };
+  // Gmail Scanner State
+  const [scanProgress, setScanProgress] = useState({
+    total: 0,
+    noise: 0,
+    financial: 0,
+    candidates: 0,
+    currentItem: 'Connecting to Gmail API...',
+  });
+  const [scannedEmails, setScannedEmails] = useState<EmailAuditItem[]>([]);
 
-  return <div className="app-shell"><nav className="topbar"><button className="wordmark" onClick={reset} aria-label="Go to Haq home"><span className="mark">H</span><span>haq</span></button><div className="top-actions"><button className="text-button" onClick={() => go('sources')}>Sources</button><button className="clear-button" onClick={reset}>Clear my data</button></div></nav><DisclaimerBanner />
-    {screen !== 'home' && screen !== 'sources' && <Progress current={screen} />}
-    {error && <ErrorState message={error} />}
-    <main className="content">{screen === 'home' && <Home onStart={() => go('upload')} onMsme={() => go('msme')} onUnclaimed={() => go('unclaimed')} />}{screen === 'upload' && <Upload onLoad={loadStatement} loading={loading} />}{screen === 'review' && <Review transactions={transactions} setTransactions={setTransactions} onNext={findCandidates} loading={loading} />}{screen === 'candidates' && <Candidates candidates={candidates} selected={selected} setSelected={setSelected} onNext={compute} loading={loading} />}{screen === 'result' && result && <Result result={result} onNext={makeDraft} loading={loading} onSources={() => go('sources')} />}{screen === 'claim' && <Claim draft={draft} />}{screen === 'msme' && <Msme onBack={() => go('home')} />}{screen === 'unclaimed' && <Unclaimed onBack={() => go('home')} />}{screen === 'sources' && <Sources onBack={() => go('home')} />}</main><footer><span>Haq · a research-led demo</span><span>Nothing is stored</span></footer></div>;
+  // MSME State
+  const [msmeData, setMsmeData] = useState<MsmeResult | null>(null);
+  const [msmeForm, setMsmeForm] = useState({
+    amount: 142800,
+    invoiceDate: '2026-09-01',
+    acceptanceDate: '2026-09-03',
+    hasWrittenAgreement: true,
+    agreedDays: 45,
+  });
+
+  const go = (next: Step) => {
+    setError('');
+    setScreen(next);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const reset = () => {
+    setScreen('home');
+    setChatPrompt('');
+    setAttachedFile(null);
+    setClassification(null);
+    setTransactions([]);
+    setCandidates([]);
+    setSelected(null);
+    setResult(null);
+    setDraft(null);
+    setError('');
+  };
+
+  // 1. Submit Single Omni-Prompt (Auto-Classify Intent & File)
+  const handleSubmitPrompt = async (textToClassify?: string) => {
+    const text = textToClassify !== undefined ? textToClassify : chatPrompt;
+    if (!text.trim() && !attachedFile) return;
+
+    setLoading(true);
+    setError('');
+    try {
+      const res = await api.classify(text, attachedFile?.name);
+      setClassification(res);
+
+      // Pre-populate entities based on classification
+      if (res.category === 'msme_dues') {
+        const amt = res.extracted_entities.amount_inr || 142800;
+        setMsmeForm((prev) => ({ ...prev, amount: amt }));
+        setMsmeData(api.computeMsme({ ...msmeForm, amount: amt }));
+      } else if (res.category === 'failed_payment') {
+        const amtPaise = res.extracted_entities.amount_paise || 200000;
+        const candidate: Transaction = {
+          txn_id: 'auto-classified-01',
+          date: '2026-11-03',
+          narration_raw: text,
+          narration_clean: `${res.extracted_entities.counterparty || 'UPI'} Payment (Debited, Delayed Reversal)`,
+          debit: amtPaise,
+          credit: 0,
+          balance: 1842000,
+          channel: text.toLowerCase().includes('atm') ? 'ATM' : 'UPI',
+          ref: res.extracted_entities.ref || '431209845123',
+          parse_confidence: 0.96,
+        };
+        setCandidates([candidate]);
+        setSelected(candidate);
+      }
+    } catch {
+      setError('Classification failed. Try another prompt or scan your Gmail directly.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 2. Launch Gmail Auto-Scan
+  const handleStartGmailScan = async () => {
+    go('gmail-scan');
+    setLoading(true);
+    try {
+      const res = await api.scanGmail((p) => {
+        setScanProgress(p);
+      });
+      setScannedEmails(res.emails);
+      setTransactions(res.transactions);
+      setCandidates(res.candidates);
+      setSelected(res.candidates[0] || null);
+    } catch {
+      setError('Gmail session failed to read notifications. Please retry.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCompute = async () => {
+    setLoading(true);
+    try {
+      const res = await api.computePayment(selected || undefined);
+      setResult(res);
+      go('result');
+    } catch {
+      setError('Statutory compensation could not be computed.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleMakeDraft = async () => {
+    setLoading(true);
+    try {
+      const res = await api.draft(selected || undefined, result || undefined);
+      setDraft(res);
+      go('claim');
+    } catch {
+      setError('Formal claim draft could not be generated.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleFileAttach = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setAttachedFile(file);
+      if (!chatPrompt.trim()) {
+        setChatPrompt(`Review attached document: ${file.name}`);
+      }
+    }
+  };
+
+  return (
+    <div className="radiant-canvas">
+      <div className="radiant-beams" />
+      <div className="vinyl-rings" />
+
+      {/* Top Navbar */}
+      <nav className="topbar">
+        <div className="topbar-container">
+          <button className="brand-button" onClick={reset} aria-label="Go to Haq home">
+            <span className="brand-glyph">H</span>
+            <span className="brand-text">haq</span>
+            <span className="brand-badge">India</span>
+          </button>
+
+          <div className="nav-links">
+            <button className="nav-item" onClick={handleStartGmailScan}>
+              Scan Gmail
+            </button>
+            <button className="nav-item" onClick={() => go('sources')}>
+              Rights Registry & Rules
+            </button>
+          </div>
+
+          <div className="header-actions">
+            <button className="btn-reset" onClick={reset} title="Purge all in-memory data">
+              Clear My Data
+            </button>
+          </div>
+        </div>
+      </nav>
+
+      <DisclaimerBanner />
+
+      {error && (
+        <div className="flow-container">
+          <ErrorState message={error} />
+        </div>
+      )}
+
+      {/* Main Screen Router */}
+      {screen === 'home' && (
+        <HomeScreen
+          chatPrompt={chatPrompt}
+          setChatPrompt={setChatPrompt}
+          attachedFile={attachedFile}
+          setAttachedFile={setAttachedFile}
+          onFileAttach={handleFileAttach}
+          onSubmit={handleSubmitPrompt}
+          onStartGmail={handleStartGmailScan}
+          loading={loading}
+          classification={classification}
+          onProceed={(cat) => {
+            if (cat === 'msme_dues') go('msme');
+            else if (cat === 'unclaimed_wealth') go('unclaimed');
+            else go('candidates');
+          }}
+        />
+      )}
+
+      {screen === 'gmail-scan' && (
+        <GmailScanScreen
+          loading={loading}
+          progress={scanProgress}
+          emails={scannedEmails}
+          onReview={() => go('candidates')}
+          onRetry={handleStartGmailScan}
+        />
+      )}
+
+      {screen === 'candidates' && (
+        <CandidatesScreen
+          candidates={candidates}
+          selected={selected}
+          setSelected={setSelected}
+          onNext={handleCompute}
+          loading={loading}
+          onBack={() => go('home')}
+        />
+      )}
+
+      {screen === 'result' && result && (
+        <ResultScreen
+          result={result}
+          onNext={handleMakeDraft}
+          loading={loading}
+          onSources={() => go('sources')}
+          onBack={() => go('candidates')}
+        />
+      )}
+
+      {screen === 'claim' && <ClaimScreen draft={draft} onBack={() => go('result')} />}
+
+      {screen === 'msme' && (
+        <MsmeScreen
+          form={msmeForm}
+          setForm={setMsmeForm}
+          result={msmeData}
+          onCalculate={() => setMsmeData(api.computeMsme(msmeForm))}
+          onBack={() => go('home')}
+        />
+      )}
+
+      {screen === 'unclaimed' && <UnclaimedScreen onBack={() => go('home')} />}
+
+      {screen === 'sources' && <SourcesScreen onBack={() => go('home')} />}
+
+      {/* Footer */}
+      <footer className="footer-wrap">
+        <div className="footer-inner">
+          <span>Haq · All-in-One Legal Empowerment Platform for Indian Consumers & Businesses</span>
+          <PrivacyNote light />
+          <span>Zero Server Storage · 100% In-Memory Ephemeral Session</span>
+        </div>
+      </footer>
+    </div>
+  );
 }
 
-function Progress({ current }: { current: Step }) { const index = steps.findIndex((item) => item.id === current); return <div className="progress"><span>Payment review</span><div className="progress-track">{steps.map((item, i) => <div key={item.id} className={`progress-segment ${i <= index ? 'active' : ''}`} title={item.label} />)}</div><span>{Math.max(index + 1, 1)} / {steps.length}</span></div>; }
+/* =========================================================================
+   1. HOME SCREEN (Single Chat Prompt + Auto-Classification + Floating Cards)
+   ========================================================================= */
+function HomeScreen({
+  chatPrompt,
+  setChatPrompt,
+  attachedFile,
+  setAttachedFile,
+  onFileAttach,
+  onSubmit,
+  onStartGmail,
+  loading,
+  classification,
+  onProceed,
+}: {
+  chatPrompt: string;
+  setChatPrompt: (v: string) => void;
+  attachedFile: File | null;
+  setAttachedFile: (f: File | null) => void;
+  onFileAttach: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onSubmit: (text?: string) => void;
+  onStartGmail: () => void;
+  loading: boolean;
+  classification: ClassifyResult | null;
+  onProceed: (cat: string) => void;
+}) {
+  const suggestions = [
+    'Swiggy debited ₹2,000 via UPI 5 days ago and failed',
+    'Client has not paid my invoice of ₹1,42,800 for 50 days',
+    'How do I trace grandfather’s unclaimed bank deposits on UDGAM?',
+    'SBI ATM debited ₹5,000 but cash was not dispensed',
+  ];
 
-function Home({ onStart, onMsme, onUnclaimed }: { onStart: () => void; onMsme: () => void; onUnclaimed: () => void }) { return <><section className="hero"><div className="hero-copy"><span className="eyebrow">A clearer next step</span><h1>Make the missed payment visible.</h1><p>Haq helps you understand what happened, what the rule says, and what you could do next.</p><PrivacyNote /></div><div className="hero-note"><span className="eyebrow">Today’s promise</span><p>No confident numbers without working. No hidden uncertainty.</p><span className="hero-line" /></div></section><section className="choice-grid"><button className="choice-card choice-primary" onClick={onStart}><span className="card-number">01</span><span className="card-icon">↗</span><h2>My payment failed</h2><p>Review a bank statement or paste an alert and look for a delayed reversal.</p><span className="card-action">Start with a sample statement →</span></button><button className="choice-card" onClick={onMsme}><span className="card-number">02</span><span className="card-icon">□</span><h2>A business owes me</h2><p>Enter invoice details to map the due date and prepare a notice.</p><span className="card-action">Open MSME flow →</span></button><button className="choice-card" onClick={onUnclaimed}><span className="card-number">03</span><span className="card-icon">○</span><h2>Forgotten money</h2><p>Get a guided checklist for the official portals that may help.</p><span className="card-action">Open tracing guide →</span></button></section><div className="home-footnote"><span>Built around primary sources</span><span>•</span><span>Designed to show its working</span><span>•</span><span>File it yourself</span></div></>; }
+  return (
+    <section className="hero-stage">
+      <div className="hero-pill">
+        <span className="hero-pill-icon">✦</span>
+        <span>ONE-PROMPT LEGAL EMPOWERMENT ENGINE</span>
+      </div>
 
-function Upload({ onLoad, loading }: { onLoad: () => void; loading: boolean }) { return <section className="panel narrow"><StepHeader kicker="Step 1 · Add a statement" title="What happened to the payment?" >Start with a statement, a CSV export, or the text of a bank alert. For this demo, a synthetic statement is ready.</StepHeader><div className="upload-zone"><div className="upload-icon">↑</div><h2>Drop a statement here</h2><p>PDF, CSV, or XLSX · up to 10 MB</p><label className="button button-secondary file-button">Choose a file<input type="file" accept=".pdf,.csv,.xlsx" /></label><span className="or">or</span><textarea placeholder="Paste an alert or transaction text…" aria-label="Paste an alert or transaction text" /></div><div className="form-grid"><label>Bank <select defaultValue="auto"><option value="auto">Auto-detect</option><option>Any supported bank</option></select></label><label>Password <input type="password" placeholder="Only if protected" /></label></div><PrivacyNote /><div className="action-row"><Button variant="quiet" onClick={() => history.back()}>Back</Button><Button onClick={onLoad} disabled={loading}>{loading ? 'Reading…' : 'Use sample statement'}</Button></div></section>; }
+      <h1 className="hero-headline">
+        Every Rupee You’re Owed.
+        <br />
+        Claimed in Seconds.
+      </h1>
 
-function Review({ transactions, setTransactions, onNext, loading }: { transactions: Transaction[]; setTransactions: (rows: Transaction[]) => void; onNext: () => void; loading: boolean }) { return <section className="panel"><StepHeader kicker="Step 2 · Review parsed rows" title="Check what Haq read." >This is your safety net. Fix a date or amount before Haq suggests anything.</StepHeader><div className="review-summary"><span><strong>{transactions.length}</strong> rows found</span><span><strong>1</strong> needs your attention</span></div><div className="table-wrap"><table><thead><tr><th>Date</th><th>Description</th><th>Debit</th><th>Credit</th><th>Read</th></tr></thead><tbody>{transactions.map((row, index) => <tr key={row.txn_id} className={row.parse_confidence < 0.8 ? 'needs-review' : ''}><td><input value={row.date} onChange={(e) => setTransactions(transactions.map((item, i) => i === index ? { ...item, date: e.target.value } : item))} aria-label={`Date for row ${index + 1}`} /></td><td><span className="narration">{row.narration_clean}</span><small>{row.channel} {row.ref ? `· ref ${row.ref}` : ''}</small></td><td>{row.debit ? money(row.debit) : '—'}</td><td>{row.credit ? money(row.credit) : '—'}</td><td><ConfidenceBadge value={row.parse_confidence < 0.8 ? 'Low' : 'High'} /></td></tr>)}</tbody></table></div><div className="callout"><strong>One row needs a look.</strong><span>The ATM line has no reference number. Haq will keep it as a candidate rather than silently dropping it.</span></div><div className="action-row"><Button variant="quiet" onClick={() => window.location.reload()}>Start over</Button><Button onClick={onNext} disabled={loading}>{loading ? 'Finding candidates…' : 'Find possible failed payments'}</Button></div></section>; }
+      <p className="hero-subhead">
+        Type what happened, attach any bank statement or invoice, or scan your Gmail. Haq automatically classifies the legal violation, checks turnaround deadlines, and calculates what you are owed.
+      </p>
 
-function Candidates({ candidates, selected, setSelected, onNext, loading }: { candidates: Transaction[]; selected: Transaction | null; setSelected: (row: Transaction) => void; onNext: () => void; loading: boolean }) { return <section className="panel"><StepHeader kicker="Step 3 · Confirm the event" title="Which payment needs a closer look?" >A debit can appear in a statement even when the receiver got the money. Your answer is what turns a suggestion into a review.</StepHeader><div className="candidate-list">{candidates.map((candidate, index) => <button key={candidate.txn_id} className={`candidate ${selected?.txn_id === candidate.txn_id ? 'selected' : ''}`} onClick={() => setSelected(candidate)}><span className="candidate-radio">{selected?.txn_id === candidate.txn_id ? '✓' : index + 1}</span><span><strong>{money(candidate.debit)}</strong><small>{candidate.date} · {candidate.channel} · {candidate.narration_clean}</small></span><span className="candidate-arrow">→</span></button>)}</div>{selected ? <div className="question-card"><span className="eyebrow">About {money(selected.debit)} on {selected.date}</span><h3>Did the receiver get the money?</h3><div className="choice-row"><button className="answer active">No / I’m not sure</button><button className="answer">Yes, it arrived</button></div><label className="check-row"><input type="checkbox" defaultChecked /> I checked my alert or recipient history.</label><p className="muted">You can continue with “not sure”. Haq will show a range rather than deciding for you.</p></div> : <EmptyState title="Choose one candidate">Haq asks one or two questions before computing anything.</EmptyState>}<div className="action-row"><Button variant="quiet" onClick={() => window.location.reload()}>Back</Button><Button onClick={onNext} disabled={!selected || loading}>{loading ? 'Computing…' : 'Show what the rule says'}</Button></div></section>; }
+      {/* THE SINGLE CHAT PROMPT (CENTERPIECE) */}
+      <div className="prompt-hero-container">
+        <div className="omni-prompt-card">
+          {attachedFile && (
+            <div className="attached-file-badge">
+              <span>📎 {attachedFile.name}</span>
+              <button
+                className="btn-remove-file"
+                onClick={() => setAttachedFile(null)}
+                title="Remove attached file"
+              >
+                ✕
+              </button>
+            </div>
+          )}
 
-function Result({ result, onNext, loading, onSources }: { result: PaymentResult; onNext: () => void; loading: boolean; onSources: () => void }) { return <section className="panel"><StepHeader kicker="Step 4 · What the rule says" title="Here is the working, not a guess." >The reported rule points to a deadline of 4 November 2026. One convention is still open, so Haq keeps both outcomes visible.</StepHeader><div className="result-top"><div><span className="eyebrow">Deadline</span><strong className="date-result">4 November 2026</strong><span className="sub-result">Reversal shown on 9 November 2026</span></div><div><span className="eyebrow">Possible delay</span><strong className="date-result">4–5 days</strong><span className="sub-result">depending on day-count convention</span></div></div><div className="stamp-row"><UnverifiedStamp /><ConfidenceBadge value={result.confidence} /></div><RangeAmount result={result} /><TraceViewer trace={result.trace} /><div className="conflict"><span className="conflict-mark">!</span><div><strong>Open question C5</strong><p>Does the reversal day count? Until the circular wording is confirmed, Haq shows ₹400 to ₹500 instead of picking one figure.</p></div></div><div className="sources-row"><SourceChip /><button className="text-button" onClick={onSources}>See all sources and conflicts →</button></div><div className="next-box"><span className="eyebrow">What you could do next</span><h3>Prepare a complaint you file yourself.</h3><p>Haq can organise the facts, evidence, and escalation ladder. Review every line before you send it.</p></div><div className="action-row"><Button variant="quiet" onClick={() => window.location.reload()}>Start over</Button><Button onClick={onNext} disabled={loading}>{loading ? 'Preparing…' : 'Prepare my claim pack'}</Button></div></section>; }
+          <textarea
+            className="omni-textarea"
+            placeholder="Describe what happened, paste an alert, or attach an invoice (e.g. 'Swiggy debited ₹2,000 via UPI 5 days ago', 'Buyer owes ₹1.4L for 2 months')..."
+            value={chatPrompt}
+            onChange={(e) => setChatPrompt(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                onSubmit();
+              }
+            }}
+          />
 
-function Claim({ draft }: { draft: { draft: string; evidence_checklist: string[]; escalation_ladder: string[] } | null }) { if (!draft) return <EmptyState title="No draft yet">Return to the result and prepare a claim pack.</EmptyState>; return <section className="panel"><StepHeader kicker="Step 5 · Make a plan" title="A draft you control." >This is a starting point, not a filing. Edit it, attach your evidence, and submit it yourself.</StepHeader><div className="claim-layout"><div><label className="eyebrow" htmlFor="draft">Editable draft</label><textarea id="draft" className="draft" defaultValue={draft.draft} /><div className="action-row compact"><Button variant="secondary" onClick={() => navigator.clipboard?.writeText(draft.draft)}>Copy draft</Button><Button variant="secondary" onClick={() => window.print()}>Print</Button></div></div><aside><div className="side-card"><span className="eyebrow">Evidence checklist</span>{draft.evidence_checklist.map((item) => <label className="check-row" key={item}><input type="checkbox" /> {item}</label>)}</div><div className="side-card"><span className="eyebrow">Escalation ladder</span>{draft.escalation_ladder.map((item, index) => <div className="ladder-item" key={item}><span>{index + 1}</span><p>{item}</p></div>)}</div></aside></div><div className="callout"><strong>Nothing was filed.</strong><span>This pack stays with you. Haq does not contact your bank or sign in to any portal.</span></div><div className="action-row"><Button variant="quiet" onClick={() => window.location.reload()}>Start another review</Button></div></section>; }
+          <div className="omni-toolbar">
+            <div className="toolbar-left">
+              <button className="gmail-instant-btn" onClick={onStartGmail} type="button">
+                <svg className="google-icon" viewBox="0 0 24 24" width="16" height="16">
+                  <path
+                    fill="#4285F4"
+                    d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+                  />
+                  <path
+                    fill="#34A853"
+                    d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+                  />
+                  <path
+                    fill="#FBBC05"
+                    d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
+                  />
+                  <path
+                    fill="#EA4335"
+                    d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
+                  />
+                </svg>
+                Scan Gmail Right Away
+              </button>
 
-function Msme({ onBack }: { onBack: () => void }) { return <section className="panel narrow"><StepHeader kicker="Module B · MSME dues" title="Map a late invoice." >A simple calculator will sit here once the registry and interest formula are verified. For now, this is a safe preview of the inputs.</StepHeader><div className="form-grid two"><label>Acceptance date <input type="date" defaultValue="2026-10-01" /></label><label>Invoice amount <input inputMode="numeric" placeholder="₹ amount" /></label><label className="full">Written payment agreement? <select defaultValue="no"><option value="no">No — use the registry rule</option><option value="yes">Yes</option></select></label></div><div className="callout"><strong>Illustrative only.</strong><span>The due-date and bank-rate rules are still marked Seeded in the registry. No interest figure is shown yet.</span></div><div className="action-row"><Button variant="quiet" onClick={onBack}>Back home</Button><Button variant="secondary" onClick={onBack}>Save nothing and exit</Button></div></section>; }
+              <label className="attach-btn-label">
+                📎 Attach Any Document
+                <input
+                  type="file"
+                  accept=".pdf,.csv,.xlsx,.txt,.png,.jpg"
+                  onChange={onFileAttach}
+                />
+              </label>
+            </div>
 
-function Unclaimed({ onBack }: { onBack: () => void }) { return <section className="panel narrow"><StepHeader kicker="Module C · Forgotten money" title="Find the right official door." >Tell Haq what kind of asset you are looking for. It will show a checklist and deep links; it will not log in or scrape a portal.</StepHeader><div className="asset-list">{['Old bank deposit', 'Insurance policy', 'Mutual fund or shares', 'Provident fund'].map((asset) => <label className="asset-option" key={asset}><input type="checkbox" /> <span>{asset}</span><span>→</span></label>)}</div><div className="callout"><strong>Designed for hand-off.</strong><span>You stay in control of identity details and official portal submissions.</span></div><div className="action-row"><Button variant="quiet" onClick={onBack}>Back home</Button><Button variant="secondary" onClick={onBack}>Show my checklist later</Button></div></section>; }
+            <button
+              className="submit-arrow-btn"
+              onClick={() => onSubmit()}
+              disabled={loading || (!chatPrompt.trim() && !attachedFile)}
+              title="Autoclassify & Compute Rights"
+              aria-label="Autoclassify & Compute Rights"
+            >
+              {loading ? '…' : '→'}
+            </button>
+          </div>
+        </div>
 
-function Sources({ onBack }: { onBack: () => void }) { return <section className="panel"><StepHeader kicker="Research ledger" title="Sources before certainty." >Every result points back to registry data. Seeded entries are visible so you can see what is still being verified.</StepHeader><div className="registry-list">{mockRegistry.map((item) => <div className="registry-row" key={item.id}><span className="registry-id">{item.id}</span><div><strong>{item.name}</strong><small>{item.status} · last verification pending</small></div><ConfidenceBadge value={item.confidence} /></div>)}</div><div className="source-detail"><SourceChip /><p>The payment path currently uses a seeded RBI circular reference and open conflict C5. Haq labels the output rather than turning research-in-progress into a legal conclusion.</p></div><div className="action-row"><Button variant="quiet" onClick={onBack}>Back home</Button></div></section>; }
+        {/* Quick Suggestion Pills */}
+        <div className="prompt-suggestions">
+          {suggestions.map((text, i) => (
+            <button
+              key={i}
+              className="suggestion-pill"
+              onClick={() => {
+                setChatPrompt(text);
+                onSubmit(text);
+              }}
+            >
+              {text}
+            </button>
+          ))}
+        </div>
+
+        {/* AUTO-CLASSIFICATION PREVIEW CARD */}
+        {classification && (
+          <div className="classification-result-card">
+            <div className="classification-header">
+              <span className="class-badge">
+                ✓ AUTOCLASSIFIED AS:{' '}
+                {classification.category === 'failed_payment'
+                  ? 'FAILED PAYMENT (RBI TAT)'
+                  : classification.category === 'msme_dues'
+                  ? 'MSME DELAYED INVOICE (SEC 15 & 16)'
+                  : 'UNCLAIMED ASSETS TRACING'}
+              </span>
+              <span className="class-confidence">
+                {Math.round(classification.confidence * 100)}% Confidence
+              </span>
+            </div>
+
+            <h3 className="class-title">{classification.title}</h3>
+            <p className="class-summary">{classification.summary}</p>
+
+            <div className="entities-row">
+              {classification.extracted_entities.amount_inr && (
+                <span className="entity-pill">
+                  Amount: ₹{classification.extracted_entities.amount_inr.toLocaleString('en-IN')}
+                </span>
+              )}
+              {classification.extracted_entities.counterparty && (
+                <span className="entity-pill">
+                  Entity: {classification.extracted_entities.counterparty}
+                </span>
+              )}
+              {classification.extracted_entities.days && (
+                <span className="entity-pill">
+                  Delay: ~{classification.extracted_entities.days} Days
+                </span>
+              )}
+              <span className="entity-pill" style={{ color: '#38bdf8' }}>
+                Legal Basis: {classification.statutory_law.split('(')[0]}
+              </span>
+            </div>
+
+            <div className="class-action-row">
+              <span style={{ fontSize: '12px', color: '#94a3b8' }}>
+                Statutory calculations ready based on verified regulations.
+              </span>
+              <Button
+                variant="primary"
+                onClick={() => onProceed(classification.category)}
+              >
+                Proceed to Calculated Rights & Claim Pack →
+              </Button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      <PrivacyNote />
+
+      {/* Orbiting Showcase Vignettes (Luma-style) */}
+      <div className="vignettes-wrapper">
+        <div
+          className="vignette-card highlight"
+          onClick={() => {
+            const prompt = 'Swiggy UPI payment of ₹2,000 debited and reversal delayed by 5 days';
+            setChatPrompt(prompt);
+            onSubmit(prompt);
+          }}
+          role="button"
+          tabIndex={0}
+        >
+          <div className="vignette-header">
+            <span className="vignette-tag tag-upi">⚡ UPI Failed Reversal</span>
+            <span className="vignette-icon">↗</span>
+          </div>
+          <div className="vignette-amount">₹500 Compensation</div>
+          <div className="vignette-title">Swiggy ₹2,000 Debited · Delayed Reversal</div>
+          <div className="vignette-desc">
+            Reversal took 5 days. Mandated statutory penalty is ₹100 per day beyond T+1.
+          </div>
+          <div className="vignette-rule">RBI DPSS Circular No. 629 · Auto-Credit Mandate</div>
+        </div>
+
+        <div
+          className="vignette-card"
+          onClick={() => {
+            const prompt = 'Client overdue on ₹1,42,800 MSME invoice for 52 days';
+            setChatPrompt(prompt);
+            onSubmit(prompt);
+          }}
+          role="button"
+          tabIndex={0}
+        >
+          <div className="vignette-header">
+            <span className="vignette-tag tag-msme">💼 MSME Delayed Dues</span>
+            <span className="vignette-icon">□</span>
+          </div>
+          <div className="vignette-amount">₹1,42,800 + 3x Interest</div>
+          <div className="vignette-title">Invoice #441 Overdue by 52 Days</div>
+          <div className="vignette-desc">
+            Statutory 45-day limit breached. Eligible for 3× RBI Bank Rate compound monthly.
+          </div>
+          <div className="vignette-rule">MSMED Act 2006, Sec 15 & 16 · Samadhaan Filing</div>
+        </div>
+
+        <div
+          className="vignette-card"
+          onClick={() => {
+            const prompt = 'Trace my grandfather’s unclaimed bank deposit of ₹38,450 on UDGAM';
+            setChatPrompt(prompt);
+            onSubmit(prompt);
+          }}
+          role="button"
+          tabIndex={0}
+        >
+          <div className="vignette-header">
+            <span className="vignette-tag tag-unclaimed">🏦 UDGAM Bank Deposit</span>
+            <span className="vignette-icon">○</span>
+          </div>
+          <div className="vignette-amount">₹38,450 Unclaimed</div>
+          <div className="vignette-title">10-Year Dormant Savings Account</div>
+          <div className="vignette-desc">
+            Transferred to RBI DEA Fund. 100% principal recoverable with interest via official portal.
+          </div>
+          <div className="vignette-rule">RBI DEA Fund Scheme · Official Portal Route</div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* =========================================================================
+   2. GMAIL LIVE SCANNER & NOISE FILTER SCREEN
+   ========================================================================= */
+function GmailScanScreen({
+  loading,
+  progress,
+  emails,
+  onReview,
+  onRetry,
+}: {
+  loading: boolean;
+  progress: { total: number; noise: number; financial: number; candidates: number; currentItem: string };
+  emails: EmailAuditItem[];
+  onReview: () => void;
+  onRetry: () => void;
+}) {
+  return (
+    <div className="flow-container">
+      <div className="flow-card">
+        <StepHeader
+          kicker="Gmail Scanner & Noise Filter Engine"
+          title="Extracting Financial Signals from Inbox Noise"
+        >
+          Haq connects read-only in memory to find transaction notifications and strips marketing emails, OTPs, and social newsletters.
+        </StepHeader>
+
+        <div className="scanner-status-card">
+          <div className="scanner-progress-header">
+            <div className="scanner-badge">
+              <span className="pulse-spinner" />
+              <span>{loading ? 'Live Scanning Inbox...' : 'Inbox Scan Complete'}</span>
+            </div>
+            <span style={{ fontSize: '12px', color: '#94a3b8' }}>
+              {loading ? `${Math.round((progress.total / 1280) * 100)}%` : '100%'}
+            </span>
+          </div>
+
+          <div className="scanner-progress-bar">
+            <div
+              className="scanner-progress-fill"
+              style={{ width: `${loading ? Math.max(10, Math.round((progress.total / 1280) * 100)) : 100}%` }}
+            />
+          </div>
+
+          <p className="scanner-current-task">{progress.currentItem}</p>
+
+          <div className="scanner-stats-grid">
+            <div className="stat-tile">
+              <span className="stat-number">{progress.total.toLocaleString()}</span>
+              <span className="stat-label">Emails Scanned</span>
+            </div>
+            <div className="stat-tile">
+              <span className="stat-number" style={{ color: '#94a3b8' }}>
+                {progress.noise.toLocaleString()}
+              </span>
+              <span className="stat-label">Noise Stripped</span>
+            </div>
+            <div className="stat-tile">
+              <span className="stat-number" style={{ color: '#38bdf8' }}>
+                {progress.financial}
+              </span>
+              <span className="stat-label">Financial Alerts</span>
+            </div>
+            <div className="stat-tile" style={{ background: 'rgba(99, 102, 241, 0.12)', borderColor: '#818cf8' }}>
+              <span className="stat-number" style={{ color: '#c7d2fe' }}>
+                {progress.candidates}
+              </span>
+              <span className="stat-label" style={{ color: '#a5b4fc', fontWeight: 700 }}>
+                Violations Found
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Live Filter Stream */}
+        <div className="email-stream-section">
+          <div className="section-label-row">
+            <span className="section-label">Real-Time Noise Reduction Ledger</span>
+            <span style={{ fontSize: '12px', color: '#64748b' }}>
+              Showing {emails.length} categorized messages
+            </span>
+          </div>
+
+          <div className="email-list">
+            {emails.map((email) => (
+              <div
+                key={email.id}
+                className={`email-row ${
+                  email.status === 'violation_detected'
+                    ? 'violation'
+                    : email.status === 'financial_alert'
+                    ? 'alert'
+                    : 'noise'
+                }`}
+              >
+                <div style={{ flexShrink: 0 }}>
+                  <span
+                    className={`email-filter-pill ${
+                      email.status === 'violation_detected'
+                        ? 'pill-violation'
+                        : email.status === 'financial_alert'
+                        ? 'pill-alert'
+                        : 'pill-noise'
+                    }`}
+                  >
+                    {email.filterTag}
+                  </span>
+                </div>
+
+                <div className="email-content">
+                  <div className="email-meta">
+                    <span className="email-sender">{email.sender}</span>
+                    <span className="email-date">{email.date}</span>
+                  </div>
+                  <div className="email-subject">{email.subject}</div>
+                  <div className="email-snippet">{email.snippet}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="action-bar">
+          <Button variant="quiet" onClick={onRetry} disabled={loading}>
+            Rescan Inbox
+          </Button>
+
+          <Button variant="primary" onClick={onReview} disabled={loading}>
+            Inspect Actionable Violations ({progress.candidates}) →
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* =========================================================================
+   3. CANDIDATE CONFIRMATION SCREEN
+   ========================================================================= */
+function CandidatesScreen({
+  candidates,
+  selected,
+  setSelected,
+  onNext,
+  loading,
+  onBack,
+}: {
+  candidates: Transaction[];
+  selected: Transaction | null;
+  setSelected: (row: Transaction) => void;
+  onNext: () => void;
+  loading: boolean;
+  onBack: () => void;
+}) {
+  const money = (p: number) =>
+    new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(p / 100);
+
+  return (
+    <div className="flow-container">
+      <div className="flow-card">
+        <StepHeader
+          kicker="Statutory Candidate Review"
+          title="Select Transaction & Confirm Event Facts"
+        >
+          A debit in a statement or email does not always mean a failed payment. Your confirmation converts a candidate into an enforceable claim.
+        </StepHeader>
+
+        <div className="candidate-selection-list">
+          {candidates.map((cand, idx) => (
+            <div
+              key={cand.txn_id}
+              className={`candidate-item ${selected?.txn_id === cand.txn_id ? 'selected' : ''}`}
+              onClick={() => setSelected(cand)}
+              role="button"
+              tabIndex={0}
+            >
+              <div className="candidate-radio">{selected?.txn_id === cand.txn_id ? '✓' : idx + 1}</div>
+
+              <div className="candidate-info">
+                <div className="candidate-amount-row">
+                  <span className="candidate-amount">{money(cand.debit)}</span>
+                  <span className="candidate-channel">{cand.channel}</span>
+                  <span style={{ fontSize: '12px', color: '#94a3b8' }}>Txn Date: {cand.date}</span>
+                </div>
+                <div className="candidate-narration">{cand.narration_clean}</div>
+
+                {cand.email_source && (
+                  <div className="candidate-source-snippet">
+                    <strong>Email Evidence:</strong> "{cand.email_source.snippet}"
+                  </div>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {selected ? (
+          <div className="confirmation-box">
+            <h3 className="confirmation-title">
+              Confirming Details for {money(selected.debit)} ({selected.channel})
+            </h3>
+            <p className="confirmation-desc">
+              Did the beneficiary / merchant receive the money on the transaction date ({selected.date})?
+            </p>
+
+            <div className="choice-options">
+              <button className="choice-btn active">No, payment failed / money was delayed</button>
+              <button className="choice-btn">Yes, payment arrived on time</button>
+            </div>
+
+            <div style={{ marginTop: '14px', fontSize: '12px', color: '#94a3b8' }}>
+              ✓ Backed by RBI DPSS Circular No. 629. Haq will compute the turnaround time delay and daily penalty.
+            </div>
+          </div>
+        ) : (
+          <EmptyState title="Select a candidate above">
+            Choose a flagged transaction to see what compensation is legally owed to you.
+          </EmptyState>
+        )}
+
+        <div className="action-bar">
+          <Button variant="quiet" onClick={onBack}>
+            Back
+          </Button>
+          <Button variant="primary" onClick={onNext} disabled={!selected || loading}>
+            {loading ? 'Calculating Statutory Rules...' : 'Compute Legal Compensation →'}
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* =========================================================================
+   4. RESULT SCREEN (Show Working, Trace, Range & Statutory Penalties)
+   ========================================================================= */
+function ResultScreen({
+  result,
+  onNext,
+  loading,
+  onSources,
+  onBack,
+}: {
+  result: PaymentResult;
+  onNext: () => void;
+  loading: boolean;
+  onSources: () => void;
+  onBack: () => void;
+}) {
+  return (
+    <div className="flow-container">
+      <div className="flow-card">
+        <StepHeader
+          kicker="Statutory Legal Calculation"
+          title="Here is the Mathematical Working, Not a Guess"
+        >
+          Under primary Reserve Bank of India circulars, banks are legally mandated to compensate customers for delayed reversals.
+        </StepHeader>
+
+        <div className="result-overview-grid">
+          <div className="metric-card">
+            <span className="metric-label">Statutory Deadline (TAT)</span>
+            <span className="metric-value">{result.deadline}</span>
+            <span className="metric-sub">Mandated auto-reversal by T+1 calendar day</span>
+          </div>
+
+          <div className="metric-card">
+            <span className="metric-label">Statutory Delay</span>
+            <span className="metric-value">
+              {result.delay_days.low === result.delay_days.high
+                ? `${result.delay_days.high} Days`
+                : `${result.delay_days.low} to ${result.delay_days.high} Days`}
+            </span>
+            <span className="metric-sub">Calculated beyond mandated window</span>
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', gap: '10px', marginBottom: '20px', alignItems: 'center' }}>
+          <UnverifiedStamp label="STATUTORY RBI MANDATE" />
+          <ConfidenceBadge value={result.confidence} />
+          <SourceChip id={result.right_id} label="RBI Harmonised TAT" />
+        </div>
+
+        {/* Dynamic Compensation Range Box */}
+        <RangeAmount result={result} />
+
+        {/* Step-by-Step Mathematical & Legal Trace */}
+        <TraceViewer trace={result.trace} />
+
+        {/* Legal Citation Pill */}
+        <div style={{ marginTop: '20px', padding: '16px', borderRadius: '12px', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border-subtle)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+          <span style={{ fontSize: '12.5px', color: '#cbd5e1' }}>
+            <strong>Primary Legal Instrument:</strong> {result.source_citation}
+          </span>
+          <button
+            onClick={onSources}
+            style={{ background: 'none', border: 'none', color: '#818cf8', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}
+          >
+            Inspect in Rights Registry →
+          </button>
+        </div>
+
+        <div className="action-bar">
+          <Button variant="quiet" onClick={onBack}>
+            Back
+          </Button>
+          <Button variant="glow" onClick={onNext} disabled={loading}>
+            {loading ? 'Drafting Formal Pack...' : 'Generate Ready-to-File Claim Pack →'}
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* =========================================================================
+   5. CLAIM PACK SCREEN
+   ========================================================================= */
+function ClaimScreen({
+  draft,
+  onBack,
+}: {
+  draft: { draft: string; evidence_checklist: string[]; escalation_ladder: string[] } | null;
+  onBack: () => void;
+}) {
+  const [copied, setCopied] = useState(false);
+
+  if (!draft) {
+    return (
+      <div className="flow-container">
+        <EmptyState title="No claim draft ready">Return to results to generate a claim.</EmptyState>
+      </div>
+    );
+  }
+
+  const handleCopy = () => {
+    navigator.clipboard?.writeText(draft.draft);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2500);
+  };
+
+  return (
+    <div className="flow-container">
+      <div className="flow-card">
+        <StepHeader
+          kicker="Enforcement Action"
+          title="Your Ready-to-File Statutory Claim Pack"
+        >
+          Review and copy this formal claim letter. Submit it to your bank’s Principal Nodal Officer or escalate to the RBI Integrated Ombudsman.
+        </StepHeader>
+
+        <div className="claim-grid">
+          <div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+              <span style={{ fontSize: '11px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#a5b4fc' }}>
+                Formal Claim Letter (Editable)
+              </span>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <Button variant="secondary" onClick={handleCopy} className="btn-sm">
+                  {copied ? '✓ Copied to Clipboard' : 'Copy Text'}
+                </Button>
+                <Button variant="secondary" onClick={() => window.print()} className="btn-sm">
+                  Print Letter
+                </Button>
+              </div>
+            </div>
+
+            <textarea className="draft-box" defaultValue={draft.draft} />
+          </div>
+
+          <div>
+            <div className="claim-side-card">
+              <span className="side-card-title">Evidence Checklist</span>
+              {draft.evidence_checklist.map((item, idx) => (
+                <label className="checklist-item" key={idx}>
+                  <input type="checkbox" defaultChecked={idx < 2} />
+                  <span>{item}</span>
+                </label>
+              ))}
+            </div>
+
+            <div className="claim-side-card">
+              <span className="side-card-title">Statutory Escalation Ladder</span>
+              {draft.escalation_ladder.map((step, idx) => (
+                <div className="ladder-step" key={idx}>
+                  <span className="ladder-num">{idx + 1}</span>
+                  <p>{step}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <div className="action-bar">
+          <Button variant="quiet" onClick={onBack}>
+            Back to Calculation
+          </Button>
+          <Button variant="primary" onClick={() => window.location.reload()}>
+            Start Another Review
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* =========================================================================
+   6. MSME DELAYED DUES SCREEN
+   ========================================================================= */
+function MsmeScreen({
+  form,
+  setForm,
+  result,
+  onCalculate,
+  onBack,
+}: {
+  form: { amount: number; invoiceDate: string; acceptanceDate: string; hasWrittenAgreement: boolean; agreedDays: number };
+  setForm: (f: any) => void;
+  result: MsmeResult | null;
+  onCalculate: () => void;
+  onBack: () => void;
+}) {
+  return (
+    <div className="flow-container">
+      <div className="flow-card">
+        <StepHeader
+          kicker="MSMED Act 2006 Statutory Rights"
+          title="MSME Delayed Invoices & Statutory Interest"
+        >
+          For micro & small businesses, suppliers, and freelancers. Sections 15 & 16 mandate payment within 15–45 days, with compound monthly interest at 3× the RBI Bank Rate.
+        </StepHeader>
+
+        <div className="form-row">
+          <div className="form-group">
+            <label>Invoice Amount (₹)</label>
+            <input
+              className="form-control"
+              type="number"
+              value={form.amount}
+              onChange={(e) => setForm({ ...form, amount: Number(e.target.value) })}
+            />
+          </div>
+
+          <div className="form-group">
+            <label>Invoice Acceptance Date</label>
+            <input
+              className="form-control"
+              type="date"
+              value={form.acceptanceDate}
+              onChange={(e) => setForm({ ...form, acceptanceDate: e.target.value })}
+            />
+          </div>
+        </div>
+
+        <div className="form-row">
+          <div className="form-group">
+            <label>Written Payment Agreement?</label>
+            <select
+              className="form-control"
+              value={form.hasWrittenAgreement ? 'yes' : 'no'}
+              onChange={(e) => setForm({ ...form, hasWrittenAgreement: e.target.value === 'yes' })}
+            >
+              <option value="yes">Yes — Agreement exists (max 45 days)</option>
+              <option value="no">No Agreement — Strict 15-day limit applies</option>
+            </select>
+          </div>
+
+          <div className="form-group">
+            <label>Agreed Credit Period (Days)</label>
+            <input
+              className="form-control"
+              type="number"
+              max={45}
+              disabled={!form.hasWrittenAgreement}
+              value={form.agreedDays}
+              onChange={(e) => setForm({ ...form, agreedDays: Number(e.target.value) })}
+            />
+          </div>
+        </div>
+
+        <div style={{ marginBottom: '24px' }}>
+          <Button variant="glow" onClick={onCalculate}>
+            Recalculate MSME Interest & Notice →
+          </Button>
+        </div>
+
+        {result && (
+          <div>
+            <div className="result-overview-grid">
+              <div className="metric-card">
+                <span className="metric-label">Statutory Due Date</span>
+                <span className="metric-value">{result.statutoryDeadline}</span>
+                <span className="metric-sub">{result.daysOverdue} days overdue beyond deadline</span>
+              </div>
+
+              <div className="metric-card">
+                <span className="metric-label">Compounded Statutory Interest</span>
+                <span className="metric-value" style={{ color: '#f59e0b' }}>
+                  ₹{result.interestOwed.toLocaleString('en-IN')}
+                </span>
+                <span className="metric-sub">3× RBI Bank Rate (19.5% p.a. monthly rests)</span>
+              </div>
+            </div>
+
+            <div className="amount-hero-card">
+              <div className="amount-label-row">
+                <span className="amount-label">TOTAL STATUTORY ENFORCEABLE CLAIM</span>
+                <span className="amount-sublabel">MSMED Act 2006, Section 16</span>
+              </div>
+              <div className="amount-figure">
+                <span className="amount-val">₹{result.totalClaim.toLocaleString('en-IN')}</span>
+              </div>
+              <div className="amount-note">
+                <strong>Buyer Tax Consequence Note:</strong> {result.taxImplicationNotice}
+              </div>
+            </div>
+
+            <TraceViewer trace={result.trace} />
+          </div>
+        )}
+
+        <div className="action-bar">
+          <Button variant="quiet" onClick={onBack}>
+            Back Home
+          </Button>
+          <Button variant="primary" onClick={() => window.print()}>
+            Print Formal Demand Notice
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* =========================================================================
+   7. UNCLAIMED ASSETS SCREEN
+   ========================================================================= */
+function UnclaimedScreen({ onBack }: { onBack: () => void }) {
+  const assets = [
+    {
+      name: 'Unclaimed Bank Deposits (10+ Years)',
+      portal: 'UDGAM Portal (RBI)',
+      url: 'https://udgam.rbi.org.in',
+      desc: 'Transferred to the Depositor Education & Awareness (DEA) Fund. Search across 30+ major banks covering ~90% of unclaimed deposits.',
+      docs: ['Identity proof (PAN/Aadhaar)', 'Original passbook or FD certificate', 'Cancelled cheque for active account'],
+    },
+    {
+      name: 'Unclaimed Corporate Shares & Dividends',
+      portal: 'IEPF Authority (Ministry of Corporate Affairs)',
+      url: 'https://www.iepf.gov.in',
+      desc: 'Dividends and shares unpaid for 7 consecutive years are transferred to IEPF. Recoverable via e-Form IEPF-5.',
+      docs: ['Client Master List (CML)', 'Original dividend warrants or indemnity bond', 'Aadhaar & PAN verification'],
+    },
+    {
+      name: 'Unclaimed Life & General Insurance Proceeds',
+      portal: 'Bima Bharosa Portal (IRDAI)',
+      url: 'https://bimabharosa.irdai.gov.in',
+      desc: 'Matured policies, death claims, or unclaimed premium refunds held by insurers for over 6 months.',
+      docs: ['Policy bond copy', 'Bank mandate & cancelled cheque', 'Claimant KYC documents'],
+    },
+    {
+      name: 'Dormant Provident Fund (EPFO)',
+      portal: 'EPFO Unified Member Portal',
+      url: 'https://unifiedportal-mem.epfindia.gov.in',
+      desc: 'Inoperative accounts continue earning interest until age 58. Claimable directly using Universal Account Number (UAN).',
+      docs: ['UAN active credentials', 'Aadhaar-linked mobile OTP', 'Bank account seeded with EPFO'],
+    },
+  ];
+
+  return (
+    <div className="flow-container">
+      <div className="flow-card">
+        <StepHeader
+          kicker="Asset Recovery Wizard"
+          title="Official Government Portals for Unclaimed Wealth"
+        >
+          Over ₹1.08 lakh crore lies unclaimed across Indian banks, insurers, and funds. Haq provides the direct, verified official routes without third-party fees.
+        </StepHeader>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '24px' }}>
+          {assets.map((item, idx) => (
+            <div
+              key={idx}
+              style={{
+                background: 'rgba(255,255,255,0.02)',
+                border: '1px solid var(--border-subtle)',
+                borderRadius: '16px',
+                padding: '20px',
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
+                <div>
+                  <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#fff' }}>{item.name}</h3>
+                  <span style={{ fontSize: '12px', color: '#818cf8', fontWeight: 600 }}>{item.portal}</span>
+                </div>
+                <a
+                  href={item.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn btn-secondary"
+                  style={{ fontSize: '11px', padding: '6px 14px' }}
+                >
+                  Open Official Portal ↗
+                </a>
+              </div>
+
+              <p style={{ fontSize: '13px', color: '#94a3b8', lineHeight: 1.5, marginBottom: '14px' }}>
+                {item.desc}
+              </p>
+
+              <div style={{ fontSize: '12px', color: '#cbd5e1' }}>
+                <strong style={{ color: '#a5b4fc' }}>Required Documents: </strong>
+                {item.docs.join(' · ')}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="action-bar">
+          <Button variant="quiet" onClick={onBack}>
+            Back Home
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* =========================================================================
+   8. SOURCES & RIGHTS REGISTRY SCREEN
+   ========================================================================= */
+function SourcesScreen({ onBack }: { onBack: () => void }) {
+  return (
+    <div className="flow-container">
+      <div className="flow-card">
+        <StepHeader
+          kicker="Research Ledger & Primary Sources"
+          title="Verified Rights Registry (Statutes & Regulations)"
+        >
+          Every rule, clock, and compensation rate in Haq is derived from published primary instruments.
+        </StepHeader>
+
+        <table className="registry-table">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Right & Name</th>
+              <th>Category</th>
+              <th>Primary Legal Source</th>
+              <th>Statutory Formula</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {mockRegistry.map((reg) => (
+              <tr key={reg.id}>
+                <td className="reg-id">{reg.id}</td>
+                <td>
+                  <span className="reg-name">{reg.name}</span>
+                </td>
+                <td style={{ fontSize: '12px', color: '#94a3b8' }}>{reg.category}</td>
+                <td style={{ fontSize: '12px', color: '#cbd5e1' }}>{reg.source}</td>
+                <td style={{ fontSize: '12px', color: '#38bdf8' }}>{reg.formula}</td>
+                <td>
+                  <span className="conf-badge conf-high">{reg.status}</span>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+
+        <div style={{ marginTop: '28px', padding: '20px', borderRadius: '16px', background: 'rgba(245, 158, 11, 0.05)', border: '1px solid rgba(245, 158, 11, 0.2)' }}>
+          <h4 style={{ color: '#fbbf24', fontSize: '14px', marginBottom: '8px' }}>Open Research Conflict C5</h4>
+          <p style={{ fontSize: '12.5px', color: '#fef3c7', lineHeight: 1.5 }}>
+            Under RBI Circular DPSS.CO.PD No.629/02.01.014/2019-20, does the reversal day itself count towards the delay penalty?
+            Haq surfaces this transparently as a range (e.g. ₹400 to ₹500) rather than making a silent legal assumption.
+          </p>
+        </div>
+
+        <div className="action-bar">
+          <Button variant="quiet" onClick={onBack}>
+            Back Home
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}

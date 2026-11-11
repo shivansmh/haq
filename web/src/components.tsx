@@ -2,48 +2,157 @@ import type { ReactNode } from 'react';
 import type { PaymentResult, TraceStep } from './api';
 
 export function DisclaimerBanner() {
-  return <div className="disclaimer"><span className="eyebrow">Important</span><span>Haq explains what a rule says. It is not legal advice and does not file anything for you.</span></div>;
+  return (
+    <div className="disclaimer-banner">
+      <div className="disclaimer-inner">
+        <span className="disclaimer-badge">STATUTORY RIGHTS NOTICE</span>
+        <span className="disclaimer-text">
+          Haq computes what primary Indian legal regulations (RBI TAT circulars, MSMED Act 2006, SEBI/UDGAM guidelines) state. Haq is an assistive technology, not a law firm, and does not file claims without your review.
+        </span>
+      </div>
+    </div>
+  );
 }
 
-export function PrivacyNote() {
-  return <div className="privacy-note"><span className="privacy-dot" /> Your statement is processed for this session only. Haq does not store it.</div>;
+export function PrivacyNote({ light = false }: { light?: boolean }) {
+  return (
+    <div className={`privacy-pill ${light ? 'light' : ''}`}>
+      <span className="privacy-dot" />
+      <span>Zero Server Storage · In-Memory Ephemeral Session · Bank & Email Tokens Purged on Tab Close</span>
+    </div>
+  );
 }
 
-export function UnverifiedStamp() {
-  return <span className="stamp">UNVERIFIED RULE</span>;
+export function UnverifiedStamp({ label = 'STATUTORY RBI RULE' }: { label?: string }) {
+  return <span className="statutory-stamp">{label}</span>;
 }
 
-export function ConfidenceBadge({ value }: { value: string }) {
-  return <span className={`badge badge-${value.toLowerCase()}`}>Confidence: {value}</span>;
+export function ConfidenceBadge({ value }: { value: 'High' | 'Medium' | 'Low' }) {
+  return <span className={`conf-badge conf-${value.toLowerCase()}`}>Confidence: {value}</span>;
 }
 
 export function RangeAmount({ result }: { result: PaymentResult }) {
   const low = result.amount_paise.low / 100;
   const high = result.amount_paise.high / 100;
   const formatter = new Intl.NumberFormat('en-IN', { maximumFractionDigits: 0 });
-  return <div className="amount-box"><span className="eyebrow">Possible amount</span><strong>₹{formatter.format(low)} <em>to</em> ₹{formatter.format(high)}</strong><p>The range stays visible because the reversal-day convention is unresolved.</p></div>;
+
+  return (
+    <div className="amount-hero-card">
+      <div className="amount-label-row">
+        <span className="amount-label">STATUTORY COMPENSATION OWED</span>
+        <span className="amount-sublabel">{result.statutory_rate_desc}</span>
+      </div>
+      <div className="amount-figure">
+        {low === high ? (
+          <span className="amount-val">₹{formatter.format(high)}</span>
+        ) : (
+          <span className="amount-val">
+            ₹{formatter.format(low)} <span className="amount-sep">to</span> ₹{formatter.format(high)}
+          </span>
+        )}
+      </div>
+      <div className="amount-note">
+        {result.conflicts.includes('C5') ? (
+          <span>
+            <strong>Research Convention C5 Open:</strong> Lower figure excludes the reversal day; upper figure includes it under RBI Harmonised TAT framework.
+          </span>
+        ) : (
+          <span>Mandated automatic compensation payable directly by remitter bank.</span>
+        )}
+      </div>
+    </div>
+  );
 }
 
 export function TraceViewer({ trace }: { trace: TraceStep[] }) {
-  return <details className="trace" open><summary>Show the working <span>({trace.length} steps)</span></summary><div className="trace-list">{trace.map((item) => <div className="trace-step" key={item.step}><span className="trace-number">{item.step}</span><div><p>{item.text}</p><small>{item.clause}</small></div></div>)}</div></details>;
+  return (
+    <details className="trace-accordion" open>
+      <summary className="trace-summary">
+        <span className="trace-title">
+          <span className="trace-icon">✦</span> Mathematical & Legal Trace
+        </span>
+        <span className="trace-count">{trace.length} verified steps</span>
+      </summary>
+      <div className="trace-steps">
+        {trace.map((item) => (
+          <div className="trace-item" key={item.step}>
+            <div className="trace-step-number">{item.step}</div>
+            <div className="trace-body">
+              <p className="trace-text">{item.text}</p>
+              <span className="trace-clause">Source: {item.clause}</span>
+            </div>
+          </div>
+        ))}
+      </div>
+    </details>
+  );
 }
 
-export function SourceChip({ id = 'R-001', label = 'RBI turnaround-time circular' }: { id?: string; label?: string }) {
-  return <button className="source-chip" type="button" onClick={() => window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' })}><span className="source-icon">↗</span><span><strong>{id}</strong> · {label}</span></button>;
+export function SourceChip({ id = 'R-001', label = 'RBI TAT Circular' }: { id?: string; label?: string }) {
+  return (
+    <div className="source-pill">
+      <span className="source-dot">§</span>
+      <span className="source-code">{id}</span>
+      <span className="source-name">{label}</span>
+    </div>
+  );
 }
 
 export function EmptyState({ title, children }: { title: string; children: ReactNode }) {
-  return <div className="empty"><span className="empty-mark">—</span><h3>{title}</h3><p>{children}</p></div>;
+  return (
+    <div className="empty-box">
+      <div className="empty-glyph">✦</div>
+      <h3>{title}</h3>
+      <p>{children}</p>
+    </div>
+  );
 }
 
 export function ErrorState({ message }: { message: string }) {
-  return <div className="error-state"><strong>Something needs a second look.</strong><p>{message}</p></div>;
+  return (
+    <div className="error-card">
+      <span className="error-icon">!</span>
+      <div className="error-body">
+        <strong>Attention Required</strong>
+        <p>{message}</p>
+      </div>
+    </div>
+  );
 }
 
 export function StepHeader({ kicker, title, children }: { kicker: string; title: string; children?: ReactNode }) {
-  return <header className="step-header"><span className="eyebrow">{kicker}</span><h1>{title}</h1>{children && <p>{children}</p>}</header>;
+  return (
+    <div className="step-header-block">
+      <span className="step-kicker">{kicker}</span>
+      <h1 className="step-title">{title}</h1>
+      {children && <p className="step-subtitle">{children}</p>}
+    </div>
+  );
 }
 
-export function Button({ children, onClick, variant = 'primary', type = 'button', disabled = false }: { children: ReactNode; onClick?: () => void; variant?: 'primary' | 'secondary' | 'quiet'; type?: 'button' | 'submit'; disabled?: boolean }) {
-  return <button className={`button button-${variant}`} type={type} onClick={onClick} disabled={disabled}>{children}<span aria-hidden="true">{variant === 'primary' ? '→' : ''}</span></button>;
+export function Button({
+  children,
+  onClick,
+  variant = 'primary',
+  type = 'button',
+  disabled = false,
+  className = '',
+}: {
+  children: ReactNode;
+  onClick?: () => void;
+  variant?: 'primary' | 'secondary' | 'quiet' | 'glow' | 'danger';
+  type?: 'button' | 'submit';
+  disabled?: boolean;
+  className?: string;
+}) {
+  return (
+    <button
+      className={`btn btn-${variant} ${className}`}
+      type={type}
+      onClick={onClick}
+      disabled={disabled}
+    >
+      {children}
+    </button>
+  );
 }

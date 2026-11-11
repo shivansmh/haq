@@ -1,0 +1,34 @@
+To:
+Principal Nodal Officer / Grievance Redressal Officer
+Customer Service Department
+{{ bank_name | default("[Bank Name / Remitter Bank]") }}
+
+Subject: Statutory claim for delayed reversal compensation under RBI Circular DPSS.CO.PD No.629/02.01.014/2019-20 (Txn Ref: {{ txn_ref }})
+
+Dear Sir / Madam,
+
+I am writing to formally request statutory compensation for the delayed reversal of a failed payment debited from my account.
+
+Details of the transaction:
+1. Account Number: Masked [{{ masked_account }}]
+2. Transaction Date: {{ txn_date }}
+3. Transaction Type: {{ channel }}
+4. Transaction Reference / RRN: {{ txn_ref }}
+5. Debited Amount: ₹{{ amount_inr }}
+6. Actual Resolution / Reversal Date: {{ resolution_date }}
+7. Statutory Turnaround Deadline: {{ deadline }} (T+1 calendar day)
+8. Days of Delay beyond Mandated Window: {{ delay_days }} days
+9. Statutory Compensation Claimed: ₹{{ compensation_inr }} (at ₹100 per day of delay)
+
+Legal Basis:
+Under the Reserve Bank of India Harmonised Framework for Turnaround Time (TAT) and customer compensation for failed transactions (Circular DPSS.CO.PD No.629/02.01.014/2019-20, Paragraph 4 and Annexure):
+"Compensation shall be credited to the customer's account automatically without the customer having to claim it at the rate of ₹100/- per day."
+
+Since the mandated auto-credit was not processed automatically, I request you to credit the compensation of ₹{{ compensation_inr }} to my account within 7 working days.
+
+Kindly issue a formal Complaint Reference Number upon receipt of this letter. If this grievance is not resolved within 30 days, I shall escalate this claim to the RBI Integrated Ombudsman under the Reserve Bank - Integrated Ombudsman Scheme, 2021.
+
+Yours sincerely,
+{{ claimant_name | default("[Your Full Name]") }}
+{{ claimant_mobile | default("[Registered Mobile Number]") }}
+{{ claimant_email | default("[Email Address]") }}

@@ -20,9 +20,34 @@ class RegistrySummary(BaseModel):
     confidence: Literal["High", "Medium", "Low"]
 
 
+class ClassifyRequest(BaseModel):
+    prompt: str
+    filename: str | None = None
+
+
+class ClassifyResponse(BaseModel):
+    category: Literal["failed_payment", "msme_dues", "unclaimed_wealth", "general_rights"]
+    confidence: float
+    title: str
+    summary: str
+    statutory_law: str
+    suggested_route: str
+    extracted_entities: dict[str, Any]
+    prompt: str
+
+
+class GmailScanRequest(BaseModel):
+    access_token: str | None = None
+    query: str | None = None
+    max_results: int = Field(default=50, ge=1, le=100)
+    use_live: bool = False
+
+
 class IngestRequest(BaseModel):
     text: str | None = None
     filename: str | None = None
+    file_bytes_base64: str | None = None
+    password: str | None = None
 
 
 class DetectRequest(BaseModel):
@@ -35,6 +60,7 @@ class PaymentComputeRequest(BaseModel):
     reversal_date: date | None = None
     amount_paise: int = Field(gt=0)
     confirmed: bool = False
+    channel: str = "UPI"
 
 
 class MsmeComputeRequest(BaseModel):
@@ -54,6 +80,9 @@ class ClaimDraftRequest(BaseModel):
     right_id: str
     confirmed_result: dict[str, Any] = Field(default_factory=dict)
     claimant_name: str = "Demo claimant"
+    claimant_mobile: str | None = None
+    claimant_email: str | None = None
+    bank_name: str | None = None
 
 
 class TraceStep(BaseModel):
@@ -61,10 +90,3 @@ class TraceStep(BaseModel):
     text: str
     clause: str
     inputs: dict[str, Any] = Field(default_factory=dict)
-
-
-class StubResponse(BaseModel):
-    status: str
-    mode: str = "demo"
-    stamp: str = "UNVERIFIED RULE"
-    data: dict[str, Any] = Field(default_factory=dict)

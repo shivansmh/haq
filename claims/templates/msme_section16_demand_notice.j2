@@ -1,0 +1,41 @@
+DEMAND NOTICE UNDER SECTION 15 & 16 OF THE MICRO, SMALL AND MEDIUM ENTERPRISES DEVELOPMENT (MSMED) ACT, 2006
+
+Date: {{ current_date }}
+
+To:
+{{ buyer_name | default("[Buyer / Debtor Enterprise Name]") }}
+{{ buyer_address | default("[Buyer Registered Office Address]") }}
+
+From:
+{{ supplier_name | default("[Supplier / Enterprise Name]") }}
+Udyam Registration No.: {{ udyam_reg_no | default("[Udyam Reg Number]") }}
+{{ supplier_address | default("[Supplier Address]") }}
+
+Subject: Formal demand for settlement of overdue invoice dues along with statutory compound interest under Section 16 of the MSMED Act, 2006 (Invoice Ref: {{ invoice_no }})
+
+Dear Sir / Madam,
+
+We write to demand payment of our outstanding invoice dues against goods/services supplied and duly accepted by you, as detailed below:
+
+1. Invoice Number: {{ invoice_no }}
+2. Invoice Date: {{ invoice_date }}
+3. Date of Delivery / Acceptance: {{ acceptance_date }}
+4. Principal Overdue Amount: ₹{{ principal_inr }}
+5. Statutory Payment Due Date: {{ statutory_due_date }} (under Section 15 of MSMED Act, 2006)
+6. Days Overdue past Statutory Limit: {{ days_overdue }} days
+7. Applicable RBI Bank Rate: {{ bank_rate }}% per annum
+8. Statutory Interest Rate: {{ statutory_interest_rate }}% per annum (3 × Bank Rate)
+9. Compounded Statutory Interest Owed (Monthly Rests): ₹{{ interest_inr }}
+10. TOTAL ENFORCEABLE DEMAND: ₹{{ total_claim_inr }}
+
+Statutory Notice:
+1. Under Section 15 of the MSMED Act, 2006, payment was mandated to be made within the statutory period (not exceeding 45 days).
+2. Under Section 16 of the MSMED Act, 2006, you are statutorily liable to pay compound interest with monthly rests at three times the Bank Rate notified by the Reserve Bank of India on the amount from the appointed day until actual payment.
+3. Attention is drawn to Section 43B(h) / Section 37(2)(g) of the Income-tax Act, under which this expenditure cannot be claimed as a tax deduction in your income tax computation until full payment is made to us.
+
+We hereby call upon you to remit the total amount of ₹{{ total_claim_inr }} into our bank account within 15 days of receipt of this notice, failing which we shall file a reference before the Micro and Small Enterprises Facilitation Council (MSEFC) via the MSME Samadhaan portal without further reference to you.
+
+Yours faithfully,
+For {{ supplier_name | default("[Supplier Enterprise Name]") }}
+
+[Authorised Signatory]
