@@ -48,7 +48,7 @@ export type SweepResult = {
   coverage?: { listed: number; triaged: number; analysed: number; relevant: number; not_analysed: number };
 };
 
-type SweepJob = {
+export type SweepJob = {
   job_id: string;
   state: string;
   listed: number;
@@ -103,9 +103,10 @@ export const api = {
     onProgress?.('Building a source-backed review', 100);
     return result;
   },
-  async liveSweep(onProgress?: (label: string, percent: number) => void): Promise<SweepResult> {
+  async liveSweep(onProgress?: (label: string, percent: number) => void, onJob?: (jobId: string) => void): Promise<SweepResult> {
     onProgress?.('Starting a background Gmail sweep', 5);
     const started = await request<SweepJob>('/v1/gmail/sweeps', { method: 'POST', body: JSON.stringify({ max_results: 500 }) });
+    onJob?.(started.job_id);
     for (;;) {
       await new Promise((resolve) => setTimeout(resolve, 350));
       const job = await request<SweepJob>(`/v1/gmail/sweeps/${started.job_id}`);
@@ -117,6 +118,9 @@ export const api = {
       }
       if (['failed', 'expired', 'cancelled'].includes(job.state)) throw new Error(job.error || `Sweep ${job.state}`);
     }
+  },
+  async cancelSweep(jobId: string): Promise<SweepJob> {
+    return request<SweepJob>(`/v1/gmail/sweeps/${jobId}`, { method: 'DELETE' });
   },
   async computePayment(finding: Finding, mode: 'demo' | 'live' = 'live'): Promise<PaymentResult> {
     if (!finding.date || !finding.debit) throw new Error('This finding does not contain enough dated amount evidence to calculate yet.');
