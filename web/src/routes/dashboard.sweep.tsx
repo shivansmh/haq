@@ -11,9 +11,16 @@ export const Route = createFileRoute("/dashboard/sweep")({
   head: () => ({
     meta: [
       { title: "Sweep your inbox — Haq" },
-      { name: "description", content: "Run a read-only sweep of your Gmail or a sample inbox to find money you may be owed." },
+      {
+        name: "description",
+        content:
+          "Run a read-only sweep of your Gmail or a sample inbox to find money you may be owed.",
+      },
       { property: "og:title", content: "Sweep your inbox — Haq" },
-      { property: "og:description", content: "Find failed payments and overdue dues in your inbox." },
+      {
+        property: "og:description",
+        content: "Find failed payments and overdue dues in your inbox.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
     ],
@@ -21,7 +28,22 @@ export const Route = createFileRoute("/dashboard/sweep")({
   component: SweepPage,
 });
 
-const STAGES = ["Reading inbox headers", "Filtering out promotions and noise", "Spotting debits, failures and invoices", "Grouping related emails into cases", "Matching each case to a rule"];
+const STAGES = [
+  "Reading inbox headers",
+  "Filtering out promotions and noise",
+  "Spotting debits, failures and invoices",
+  "Grouping related emails into cases",
+  "Matching each case to a rule",
+];
+const SESSION_KEY = "haq-gmail-session";
+
+function storedSessionToken() {
+  try {
+    return sessionStorage.getItem(SESSION_KEY) || "";
+  } catch {
+    return "";
+  }
+}
 
 function SweepPage() {
   const { result } = useSweepState();
@@ -33,20 +55,35 @@ function SweepPage() {
   const started = useRef(false);
 
   async function animate(work: Promise<SweepResult>) {
-    setRunning(true); setStage(0); setPct(4);
+    setRunning(true);
+    setStage(0);
+    setPct(4);
     let s = 0;
-    const timer = setInterval(() => { s = Math.min(s + 1, STAGES.length - 1); setStage(s); setPct((p) => Math.min(p + 17, 90)); }, 900);
+    const timer = setInterval(() => {
+      s = Math.min(s + 1, STAGES.length - 1);
+      setStage(s);
+      setPct((p) => Math.min(p + 17, 90));
+    }, 900);
     try {
       const [data] = await Promise.all([work, new Promise((r) => setTimeout(r, 4200))]);
       sweepStore.setResult(data);
-      sweepStore.log(`Sweep finished: ${data.emails_scanned} emails read, ${claimableCases(data.cases).length} possible claims`);
+      sweepStore.log(
+        `Sweep finished: ${data.emails_scanned} emails read, ${claimableCases(data.cases).length} possible claims`,
+      );
       setPct(100);
     } catch (e) {
       setNotice(e instanceof Error ? e.message : "The sweep failed. Please try again.");
-    } finally { clearInterval(timer); setRunning(false); }
+    } finally {
+      clearInterval(timer);
+      setRunning(false);
+    }
   }
 
-  const startDemo = () => { setNotice(""); sweepStore.log("Started a sweep of the sample inbox"); animate(runDemoSweep()); };
+  const startDemo = () => {
+    setNotice("");
+    sweepStore.log("Started a sweep of the sample inbox");
+    animate(runDemoSweep());
+  };
 
   const connectGmail = async () => {
     setNotice("");
@@ -62,15 +99,51 @@ function SweepPage() {
 
   // Returning from Google sign-in: run a live sweep on the connected inbox.
   useEffect(() => {
+    let cancelled = false;
     if (started.current) return;
     const params = new URLSearchParams(window.location.search);
-    if (params.get("gmail") === "denied") setNotice("Google access was not granted. Nothing was scanned.");
-    if (params.get("gmail") === "error") setNotice("Gmail could not be connected. Nothing was scanned — please try again.");
+    if (params.get("gmail") === "denied")
+      setNotice("Google access was not granted. Nothing was scanned.");
+    if (params.get("gmail") === "error")
+      setNotice("Gmail could not be connected. Nothing was scanned — please try again.");
     if (params.get("gmail") !== "connected") return;
     started.current = true;
     window.history.replaceState({}, "", window.location.pathname);
-    sweepStore.log("Connected Gmail and started a live sweep");
-    animate(liveSweep(setLabel));
+    const handoff = params.get("handoff");
+    const finishConnection = async () => {
+      try {
+        let sessionToken = storedSessionToken();
+        if (handoff) {
+          const response = await fetch(`${API_BASE}/v1/gmail/handoff`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ handoff }),
+          });
+          if (!response.ok)
+            throw new Error("The Gmail connection could not be completed. Please try again.");
+          sessionToken =
+            ((await response.json()) as { session_token?: string }).session_token || "";
+          if (!sessionToken)
+            throw new Error("The Gmail connection did not return a session. Please try again.");
+          sessionStorage.setItem(SESSION_KEY, sessionToken);
+        }
+        if (!sessionToken) throw new Error("The Gmail session is missing. Please connect again.");
+        if (cancelled) return;
+        sweepStore.log("Connected Gmail and started a live sweep");
+        animate(liveSweep(setLabel, sessionToken));
+      } catch (error) {
+        if (!cancelled)
+          setNotice(
+            error instanceof Error
+              ? error.message
+              : "Gmail could not be connected. Please try again.",
+          );
+      }
+    };
+    void finishConnection();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   if (running) {
@@ -82,9 +155,34 @@ function SweepPage() {
         </div>
         <h1 className="mt-8 font-display text-4xl">Sweeping your inbox…</h1>
         <p className="mt-2 text-sm text-muted-foreground">{label || STAGES[stage]}</p>
-        <div className="mt-6 h-2 overflow-hidden rounded-full bg-secondary"><div className="h-full rounded-full bg-primary transition-all duration-700" style={{ width: `${pct}%` }} /></div>
+        <div className="mt-6 h-2 overflow-hidden rounded-full bg-secondary">
+          <div
+            className="h-full rounded-full bg-primary transition-all duration-700"
+            style={{ width: `${pct}%` }}
+          />
+        </div>
         <ul className="mt-8 space-y-2 text-left text-sm">
-          {STAGES.map((s, i) => <li key={s} className={cn("flex items-center gap-3 transition-opacity", i > stage && "opacity-30")}><span className={cn("size-2 rounded-full", i < stage ? "bg-primary" : i === stage ? "animate-pulse bg-primary" : "bg-muted-foreground")} />{s}</li>)}
+          {STAGES.map((s, i) => (
+            <li
+              key={s}
+              className={cn(
+                "flex items-center gap-3 transition-opacity",
+                i > stage && "opacity-30",
+              )}
+            >
+              <span
+                className={cn(
+                  "size-2 rounded-full",
+                  i < stage
+                    ? "bg-primary"
+                    : i === stage
+                      ? "animate-pulse bg-primary"
+                      : "bg-muted-foreground",
+                )}
+              />
+              {s}
+            </li>
+          ))}
         </ul>
       </div>
     );
@@ -99,21 +197,47 @@ function SweepPage() {
           <div>
             <p className="text-sm text-muted-foreground">Possibly owed to you</p>
             <p className="font-display text-6xl">{inr(claimableTotal(result.cases))}</p>
-            <p className="mt-1 text-sm text-muted-foreground">{claimableCases(result.cases).length} possible claims from {result.emails_scanned} emails</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {claimableCases(result.cases).length} possible claims from {result.emails_scanned}{" "}
+              emails
+            </p>
           </div>
-          <button onClick={() => sweepStore.clear()} className="flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm font-semibold hover:bg-secondary"><RotateCcw className="size-4" />New sweep</button>
+          <button
+            onClick={() => sweepStore.clear()}
+            className="flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm font-semibold hover:bg-secondary"
+          >
+            <RotateCcw className="size-4" />
+            New sweep
+          </button>
         </div>
         <div className="mt-8 grid grid-cols-2 gap-3 md:grid-cols-4">
-          {[["Emails read", result.emails_scanned], ["Noise filtered", result.noise_filtered], ["Money signals", result.financial_alerts_found], ["Possible issues", result.violations_detected]].map(([k, v]) => (
-            <div key={k} className="rounded-xl border border-border bg-card p-4"><p className="font-display text-3xl">{v}</p><p className="text-xs text-muted-foreground">{k}</p></div>
+          {[
+            ["Emails read", result.emails_scanned],
+            ["Noise filtered", result.noise_filtered],
+            ["Money signals", result.financial_alerts_found],
+            ["Possible issues", result.violations_detected],
+          ].map(([k, v]) => (
+            <div key={k} className="rounded-xl border border-border bg-card p-4">
+              <p className="font-display text-3xl">{v}</p>
+              <p className="text-xs text-muted-foreground">{k}</p>
+            </div>
           ))}
         </div>
         <h2 className="mt-10 text-lg font-semibold">Cases</h2>
         <div className="mt-4 space-y-3">
-          {(result.cases ?? []).map((c) => <CaseCard key={c.case_id} c={c} pack={packs.find((p) => p.case_id === c.case_id)} />)}
-          {!result.cases?.length && <p className="text-sm text-muted-foreground">No claimable cases found in this inbox.</p>}
+          {(result.cases ?? []).map((c) => (
+            <CaseCard key={c.case_id} c={c} pack={packs.find((p) => p.case_id === c.case_id)} />
+          ))}
+          {!result.cases?.length && (
+            <p className="text-sm text-muted-foreground">No claimable cases found in this inbox.</p>
+          )}
         </div>
-        <Link to="/dashboard/claims" className="mt-8 inline-flex items-center gap-2 text-sm font-semibold text-primary">Go to my claims <ArrowRight className="size-4" /></Link>
+        <Link
+          to="/dashboard/claims"
+          className="mt-8 inline-flex items-center gap-2 text-sm font-semibold text-primary"
+        >
+          Go to my claims <ArrowRight className="size-4" />
+        </Link>
       </div>
     );
   }
@@ -122,13 +246,38 @@ function SweepPage() {
     <div className="mx-auto max-w-xl">
       {notice && <Notice text={notice} />}
       <h1 className="font-display text-5xl">See what's hiding in your inbox.</h1>
-      <p className="mt-4 text-muted-foreground">Haq asks Google for read-only access, scans only for payment and dues signals, and keeps nothing after your session.</p>
+      <p className="mt-4 text-muted-foreground">
+        Haq asks Google for read-only access, scans only for payment and dues signals, and keeps
+        nothing after your session.
+      </p>
       <div className="mt-8 space-y-3">
-        <button onClick={connectGmail} className="flex w-full items-center justify-between rounded-2xl bg-primary p-5 text-left text-primary-foreground hover:opacity-90">
-          <span className="flex items-center gap-3"><Mail className="size-5" /><span><span className="block font-semibold">Connect Gmail</span><span className="text-xs opacity-80">Read-only · revoke anytime</span></span></span><ArrowRight className="size-5" />
+        <button
+          onClick={connectGmail}
+          className="flex w-full items-center justify-between rounded-2xl bg-primary p-5 text-left text-primary-foreground hover:opacity-90"
+        >
+          <span className="flex items-center gap-3">
+            <Mail className="size-5" />
+            <span>
+              <span className="block font-semibold">Connect Gmail</span>
+              <span className="text-xs opacity-80">Read-only · revoke anytime</span>
+            </span>
+          </span>
+          <ArrowRight className="size-5" />
         </button>
-        <button onClick={startDemo} className="flex w-full items-center justify-between rounded-2xl border border-border bg-card p-5 text-left hover:border-primary/50">
-          <span className="flex items-center gap-3"><Inbox className="size-5 text-primary" /><span><span className="block font-semibold">Try the sample inbox</span><span className="text-xs text-muted-foreground">No sign-in · see how a sweep works</span></span></span><ArrowRight className="size-5" />
+        <button
+          onClick={startDemo}
+          className="flex w-full items-center justify-between rounded-2xl border border-border bg-card p-5 text-left hover:border-primary/50"
+        >
+          <span className="flex items-center gap-3">
+            <Inbox className="size-5 text-primary" />
+            <span>
+              <span className="block font-semibold">Try the sample inbox</span>
+              <span className="text-xs text-muted-foreground">
+                No sign-in · see how a sweep works
+              </span>
+            </span>
+          </span>
+          <ArrowRight className="size-5" />
         </button>
       </div>
     </div>
@@ -136,21 +285,56 @@ function SweepPage() {
 }
 
 function Notice({ text }: { text: string }) {
-  return <div className="mb-6 rounded-xl border border-warning/40 bg-warning/10 p-4 text-sm">{text}</div>;
+  return (
+    <div className="mb-6 rounded-xl border border-warning/40 bg-warning/10 p-4 text-sm">{text}</div>
+  );
 }
 
-async function liveSweep(onLabel: (l: string) => void): Promise<SweepResult> {
+async function liveSweep(onLabel: (l: string) => void, sessionToken: string): Promise<SweepResult> {
   const req = async <T,>(path: string, init?: RequestInit): Promise<T> => {
-    const r = await fetch(`${API_BASE}${path}`, { ...init, credentials: "include", headers: { "Content-Type": "application/json" } });
-    if (!r.ok) throw new Error(`The sweep stopped (${r.status}). Nothing was saved — start a new sweep.`);
+    const r = await fetch(`${API_BASE}${path}`, {
+      ...init,
+      credentials: "include",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Haq-Session": sessionToken,
+        ...(init?.headers || {}),
+      },
+    });
+    if (!r.ok)
+      throw new Error(`The sweep stopped (${r.status}). Nothing was saved — start a new sweep.`);
     return r.json();
   };
-  const job = await req<{ job_id: string }>("/v1/gmail/sweeps", { method: "POST", body: JSON.stringify({ max_results: 500 }) });
+  const job = await req<{ job_id: string }>("/v1/gmail/sweeps", {
+    method: "POST",
+    body: JSON.stringify({ max_results: 500 }),
+  });
   for (;;) {
     await new Promise((r) => setTimeout(r, 600));
-    const j = await req<{ state: string; stage?: string; listed: number; triaged: number; analysed: number; relevant: number; not_analysed: number; result?: SweepResult; error?: string }>(`/v1/gmail/sweeps/${job.job_id}`);
+    const j = await req<{
+      state: string;
+      stage?: string;
+      listed: number;
+      triaged: number;
+      analysed: number;
+      relevant: number;
+      not_analysed: number;
+      result?: SweepResult;
+      error?: string;
+    }>(`/v1/gmail/sweeps/${job.job_id}`);
     onLabel(`${j.stage || "Scanning"} · ${j.listed} found · ${j.analysed} checked`);
-    if (j.state === "done" && j.result) return { ...j.result, coverage: { listed: j.listed, triaged: j.triaged, analysed: j.analysed, relevant: j.relevant, not_analysed: j.not_analysed } };
-    if (["failed", "expired", "cancelled"].includes(j.state)) throw new Error(j.error || `The sweep ${j.state}. Nothing was saved — start a new sweep.`);
+    if (j.state === "done" && j.result)
+      return {
+        ...j.result,
+        coverage: {
+          listed: j.listed,
+          triaged: j.triaged,
+          analysed: j.analysed,
+          relevant: j.relevant,
+          not_analysed: j.not_analysed,
+        },
+      };
+    if (["failed", "expired", "cancelled"].includes(j.state))
+      throw new Error(j.error || `The sweep ${j.state}. Nothing was saved — start a new sweep.`);
   }
 }

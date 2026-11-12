@@ -79,8 +79,14 @@ def test_gmail_callback_returns_to_dashboard_sweep(monkeypatch) -> None:
     )
 
     assert response.status_code == 303
-    assert response.headers["location"] == "https://shivansmh.github.io/haq/dashboard/sweep?gmail=connected"
+    location = response.headers["location"]
+    assert location.startswith("https://shivansmh.github.io/haq/dashboard/sweep?gmail=connected&handoff=")
+    assert "access-token" not in location
     assert "haq_session=" in response.headers["set-cookie"]
+    handoff = location.split("handoff=", 1)[1]
+    completed = client.post("/v1/gmail/handoff", json={"handoff": handoff})
+    assert completed.status_code == 200
+    assert completed.json()["session_token"]
 
 
 def test_gmail_callback_does_not_duplicate_dashboard_path(monkeypatch) -> None:

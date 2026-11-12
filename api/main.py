@@ -55,6 +55,8 @@ SESSION_COOKIE = "haq_session"
 SESSION_TTL_SECONDS = 3600
 OAUTH_STATES: dict[str, dict[str, float | str]] = {}
 GMAIL_SESSIONS: dict[str, dict[str, Any]] = {}
+GMAIL_HANDOFFS: dict[str, dict[str, float | str]] = {}
+GMAIL_HANDOFF_TTL_SECONDS = 300
 _GROQ_CLIENT: GroqClient | None = None
 _GROQ_CLIENT_LOCK = Lock()
 
@@ -98,6 +100,13 @@ async def http_error(request: Request, exc: HTTPException) -> JSONResponse:
 
 
 def _session_id(request: Request) -> str | None:
+    # GitHub Pages and Render are different sites. Browsers that block
+    # third-party cookies need the opaque browser credential issued after OAuth.
+    browser_token = request.headers.get("x-haq-session", "").strip()
+    if browser_token:
+        for session_id, session in GMAIL_SESSIONS.items():
+            if secrets.compare_digest(str(session.get("browser_token", "")), browser_token):
+                return session_id
     return request.cookies.get(SESSION_COOKIE)
 
 
@@ -245,15 +254,35 @@ def gmail_callback(
     if tokens.get("error") or not tokens.get("access_token"):
         return RedirectResponse(f"{_frontend_sweep_url()}?gmail=error&reason=token_exchange", status_code=303)
     session_id = str(state_data["session_id"])
+    browser_token = secrets.token_urlsafe(32)
     GMAIL_SESSIONS[session_id] = {
         **tokens,
+        "browser_token": browser_token,
         "created_at": time.time(),
         "last_seen": time.time(),
         "expires_at": time.time() + int(tokens.get("expires_in", 3600)),
     }
-    response = RedirectResponse(f"{_frontend_sweep_url()}?gmail=connected", status_code=303)
+    handoff = secrets.token_urlsafe(32)
+    GMAIL_HANDOFFS[handoff] = {
+        "session_id": session_id,
+        "created_at": time.time(),
+    }
+    response = RedirectResponse(f"{_frontend_sweep_url()}?gmail=connected&handoff={handoff}", status_code=303)
     _set_session_cookie(response, session_id)
     return response
+
+
+@app.post("/v1/gmail/handoff")
+def gmail_handoff(payload: dict[str, str]) -> dict[str, str]:
+    """Exchange a short-lived OAuth redirect handoff for an opaque Haq session token."""
+    handoff = str(payload.get("handoff", "")).strip()
+    handoff_data = GMAIL_HANDOFFS.pop(handoff, None)
+    if not handoff_data or time.time() - float(handoff_data["created_at"]) > GMAIL_HANDOFF_TTL_SECONDS:
+        raise HTTPException(status_code=401, detail="Gmail connection handoff expired; connect again")
+    session = GMAIL_SESSIONS.get(str(handoff_data["session_id"]))
+    if not session or not session.get("browser_token"):
+        raise HTTPException(status_code=401, detail="Gmail session is unavailable; connect again")
+    return {"session_token": str(session["browser_token"])}
 
 
 @app.get("/v1/gmail/status")
