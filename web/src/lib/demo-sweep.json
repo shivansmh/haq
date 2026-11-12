@@ -1,13 +1,14 @@
 {
   "status": "success",
-  "emails_scanned": 9,
+  "sweep_timestamp": "2026-11-12T21:15:43.266901",
+  "emails_scanned": 14,
   "noise_filtered": 4,
-  "financial_alerts_found": 5,
-  "violations_detected": 3,
+  "financial_alerts_found": 10,
+  "violations_detected": 7,
   "emails": [
     {
       "id": "msg-002",
-      "sender": "<EMAIL_1>",
+      "sender": "phonepe.com",
       "subject": "Payment Failed: Your payment of Rs 2,000 at Swiggy was not completed",
       "date": "03 Nov 2026, 14:23",
       "snippet": "Your payment failed at merchant end. Amount debited from your bank will be reversed automatically within RBI TAT.",
@@ -22,11 +23,42 @@
       ],
       "extractedAmount": 200000,
       "extractedChannel": "UPI",
-      "extractedRef": null
+      "extractedRef": null,
+      "record_id": "hf_9e96891873d85056",
+      "cluster_size": 4,
+      "duplicate_of": null,
+      "structured": {
+        "schema_version": "haq.email.v1",
+        "email_id": "msg-002",
+        "record_id": "hf_9e96891873d85056",
+        "role": "failure",
+        "duplicate": false,
+        "duplicate_of": null,
+        "cluster_size": 4,
+        "sender": "phonepe.com",
+        "subject": "Payment Failed: Your payment of Rs 2,000 at Swiggy was not completed",
+        "date": "2026-11-03",
+        "amount_paise": 200000,
+        "reference": null,
+        "segment": "consumer",
+        "vertical": "food_delivery",
+        "labels": [
+          "upi_failed_debited",
+          "upi",
+          "merchant:swiggy",
+          "food_delivery",
+          "consumer",
+          "refund-received",
+          "rule-seeded",
+          "refund_credited",
+          "failure"
+        ],
+        "needs_review": true
+      }
     },
     {
       "id": "msg-004",
-      "sender": "<EMAIL_1>",
+      "sender": "sbi.co.in",
       "subject": "Transaction Alert: ATM Cash Dispense Incomplete Rs 5,000.00",
       "date": "28 Oct 2026, 19:40",
       "snippet": "Dear Customer, txn at ATM 9422 failed to dispense cash Rs 5,000. Ref: ATM8829103. If not reversed in 5 days, contact branch.",
@@ -41,11 +73,41 @@
       ],
       "extractedAmount": 500000,
       "extractedChannel": "ATM",
-      "extractedRef": "ATM8829103"
+      "extractedRef": "ATM8829103",
+      "record_id": "hf_f1d4a098b308496a",
+      "cluster_size": 1,
+      "duplicate_of": null,
+      "structured": {
+        "schema_version": "haq.email.v1",
+        "email_id": "msg-004",
+        "record_id": "hf_f1d4a098b308496a",
+        "role": "atm_failure",
+        "duplicate": false,
+        "duplicate_of": null,
+        "cluster_size": 1,
+        "sender": "sbi.co.in",
+        "subject": "Transaction Alert: ATM Cash Dispense Incomplete Rs 5,000.00",
+        "date": "2026-10-28",
+        "amount_paise": 500000,
+        "reference": "ATM8829103",
+        "segment": "consumer",
+        "vertical": "finance",
+        "labels": [
+          "atm_cash_not_dispensed",
+          "atm",
+          "merchant:state-bank-of-india",
+          "finance",
+          "consumer",
+          "refund-pending",
+          "rule-seeded",
+          "atm_failure"
+        ],
+        "needs_review": false
+      }
     },
     {
       "id": "msg-005",
-      "sender": "<EMAIL_1>",
+      "sender": "techbuyer-corp.in",
       "subject": "Overdue Notice: Payment status for Invoice #MSME-2026-441",
       "date": "15 Oct 2026, 10:30",
       "snippet": "Dear Supplier, regarding your tax invoice #MSME-2026-441 for Rs 1,42,800.00, our finance team is processing approval. Dues are overdue by 42 days.",
@@ -59,49 +121,389 @@
       ],
       "extractedAmount": 14280000,
       "extractedChannel": "MSME",
-      "extractedRef": "MSME-2026-441"
+      "extractedRef": "MSME-2026-441",
+      "record_id": "hf_0ebf4300b5c0c9b2",
+      "cluster_size": 2,
+      "duplicate_of": null,
+      "structured": {
+        "schema_version": "haq.email.v1",
+        "email_id": "msg-005",
+        "record_id": "hf_0ebf4300b5c0c9b2",
+        "role": "invoice",
+        "duplicate": false,
+        "duplicate_of": null,
+        "cluster_size": 2,
+        "sender": "techbuyer-corp.in",
+        "subject": "Overdue Notice: Payment status for Invoice #MSME-2026-441",
+        "date": "2026-10-15",
+        "amount_paise": 14280000,
+        "reference": "MSME-2026-441",
+        "segment": "business",
+        "vertical": "business",
+        "labels": [
+          "msme_invoice_overdue",
+          "msme",
+          "merchant:techbuyer-corp",
+          "business",
+          "refund-received",
+          "rule-seeded",
+          "invoice_paid",
+          "overdue_invoice",
+          "invoice"
+        ],
+        "needs_review": false
+      }
+    },
+    {
+      "id": "msg-012",
+      "sender": "steampowered.com",
+      "subject": "Purchase failed: Steam wallet top-up of Rs 1,299",
+      "date": "05 Nov 2026, 21:15",
+      "snippet": "Your Steam wallet top-up failed. Any debited amount will be reversed.",
+      "status": "violation_detected",
+      "filterTag": "Failed payment with money debited; review evidence",
+      "signalKind": "upi_failed_debited",
+      "signalReasons": [
+        "sender is a known merchant domain (steampowered.com)",
+        "amount found: ₹1,299.00",
+        "failure wording",
+        "debit wording: money may have left the account"
+      ],
+      "extractedAmount": 129900,
+      "extractedChannel": "CARD",
+      "extractedRef": null,
+      "record_id": "hf_68a285acbd107149",
+      "cluster_size": 3,
+      "duplicate_of": null,
+      "structured": {
+        "schema_version": "haq.email.v1",
+        "email_id": "msg-012",
+        "record_id": "hf_68a285acbd107149",
+        "role": "failure",
+        "duplicate": false,
+        "duplicate_of": null,
+        "cluster_size": 3,
+        "sender": "steampowered.com",
+        "subject": "Purchase failed: Steam wallet top-up of Rs 1,299",
+        "date": "2026-11-05",
+        "amount_paise": 129900,
+        "reference": null,
+        "segment": "consumer",
+        "vertical": "gaming",
+        "labels": [
+          "upi_failed_debited",
+          "upi",
+          "merchant:steam",
+          "gaming",
+          "consumer",
+          "refund-received",
+          "rule-seeded",
+          "refund_credited",
+          "failure"
+        ],
+        "needs_review": false
+      }
     },
     {
       "id": "msg-001",
-      "sender": "<EMAIL_1>",
+      "sender": "hdfcbank.net",
       "subject": "Alert: Your HDFC Bank account was debited for UPI txn Rs 2,000.00",
       "date": "03 Nov 2026, 14:22",
-      "snippet": "Rs 2,000.00 debited from account **9122 via UPI to SWIGGY. UPI Ref 431209845123. If not done by you, report to bank.",
+      "snippet": "Rs 2,000.00 debited from account **XXXX via UPI to SWIGGY. UPI Ref UPIREF-DEMO-001. If not done by you, report to bank.",
       "status": "financial_alert",
       "filterTag": "Debit alert",
       "signalKind": "debit",
       "signalReasons": [
         "sender is a known bank domain (hdfcbank.net)",
         "amount found: ₹2,000.00",
-        "reference found: 431209845123",
+        "reference found: UPIREF-DEMO-001",
         "debit wording"
       ],
       "extractedAmount": 200000,
       "extractedChannel": "UPI",
-      "extractedRef": "431209845123"
+      "extractedRef": "UPIREF-DEMO-001",
+      "record_id": "hf_9e96891873d85056",
+      "cluster_size": 4,
+      "duplicate_of": null,
+      "structured": {
+        "schema_version": "haq.email.v1",
+        "email_id": "msg-001",
+        "record_id": "hf_9e96891873d85056",
+        "role": "debit",
+        "duplicate": false,
+        "duplicate_of": null,
+        "cluster_size": 4,
+        "sender": "hdfcbank.net",
+        "subject": "Alert: Your HDFC Bank account was debited for UPI txn Rs 2,000.00",
+        "date": "2026-11-03",
+        "amount_paise": 200000,
+        "reference": "UPIREF-DEMO-001",
+        "segment": "consumer",
+        "vertical": "food_delivery",
+        "labels": [
+          "upi_failed_debited",
+          "upi",
+          "merchant:swiggy",
+          "food_delivery",
+          "consumer",
+          "refund-received",
+          "rule-seeded",
+          "refund_credited",
+          "debit"
+        ],
+        "needs_review": true
+      }
     },
     {
       "id": "msg-003",
-      "sender": "<EMAIL_1>",
+      "sender": "hdfcbank.net",
       "subject": "Alert: Reversal credit of Rs 2,000.00 received in your account",
       "date": "09 Nov 2026, 11:05",
-      "snippet": "Account **9122 credited with Rs 2,000.00 on 09-Nov-2026 by UPI Reversal / SWIGGY / <AADHAAR_1>.",
+      "snippet": "Account **XXXX credited with Rs 2,000.00 on 09-Nov-2026 by UPI Reversal / SWIGGY / UPIREF-DEMO-001.",
       "status": "financial_alert",
       "filterTag": "Reversal / refund credit",
       "signalKind": "refund_credited",
       "signalReasons": [
         "sender is a known bank domain (hdfcbank.net)",
         "amount found: ₹2,000.00",
-        "reference found: 431209845123",
         "reversal or refund credited"
       ],
       "extractedAmount": 200000,
       "extractedChannel": "UPI",
-      "extractedRef": "431209845123"
+      "extractedRef": null,
+      "record_id": "hf_9e96891873d85056",
+      "cluster_size": 4,
+      "duplicate_of": null,
+      "structured": {
+        "schema_version": "haq.email.v1",
+        "email_id": "msg-003",
+        "record_id": "hf_9e96891873d85056",
+        "role": "refund",
+        "duplicate": false,
+        "duplicate_of": null,
+        "cluster_size": 4,
+        "sender": "hdfcbank.net",
+        "subject": "Alert: Reversal credit of Rs 2,000.00 received in your account",
+        "date": "2026-11-09",
+        "amount_paise": 200000,
+        "reference": null,
+        "segment": "consumer",
+        "vertical": "food_delivery",
+        "labels": [
+          "upi_failed_debited",
+          "upi",
+          "merchant:swiggy",
+          "food_delivery",
+          "consumer",
+          "refund-received",
+          "rule-seeded",
+          "refund_credited",
+          "refund"
+        ],
+        "needs_review": true
+      }
+    },
+    {
+      "id": "msg-010",
+      "sender": "hdfcbank.net",
+      "subject": "Alert: Your HDFC Bank account was debited for UPI txn Rs 2,000.00",
+      "date": "03 Nov 2026, 14:22",
+      "snippet": "Rs 2,000.00 debited from account **XXXX via UPI to SWIGGY. UPI Ref UPIREF-DEMO-001.",
+      "status": "financial_alert",
+      "filterTag": "Debit alert",
+      "signalKind": "debit",
+      "signalReasons": [
+        "sender is a known bank domain (hdfcbank.net)",
+        "amount found: ₹2,000.00",
+        "reference found: UPIREF-DEMO-001",
+        "debit wording"
+      ],
+      "extractedAmount": 200000,
+      "extractedChannel": "UPI",
+      "extractedRef": "UPIREF-DEMO-001",
+      "record_id": "hf_9e96891873d85056",
+      "cluster_size": 4,
+      "duplicate_of": "msg-001",
+      "structured": {
+        "schema_version": "haq.email.v1",
+        "email_id": "msg-010",
+        "record_id": "hf_9e96891873d85056",
+        "role": "debit",
+        "duplicate": true,
+        "duplicate_of": "msg-001",
+        "cluster_size": 4,
+        "sender": "hdfcbank.net",
+        "subject": "Alert: Your HDFC Bank account was debited for UPI txn Rs 2,000.00",
+        "date": "2026-11-03",
+        "amount_paise": 200000,
+        "reference": "UPIREF-DEMO-001",
+        "segment": "consumer",
+        "vertical": "food_delivery",
+        "labels": [
+          "upi_failed_debited",
+          "upi",
+          "merchant:swiggy",
+          "food_delivery",
+          "consumer",
+          "refund-received",
+          "rule-seeded",
+          "refund_credited",
+          "debit"
+        ],
+        "needs_review": true
+      }
+    },
+    {
+      "id": "msg-011",
+      "sender": "hdfcbank.net",
+      "subject": "Alert: UPI debit of Rs 1,299.00 for STEAM purchase",
+      "date": "05 Nov 2026, 21:14",
+      "snippet": "Rs 1,299.00 debited via UPI to STEAM. UPI Ref UPIREF-DEMO-002.",
+      "status": "financial_alert",
+      "filterTag": "Debit alert",
+      "signalKind": "debit",
+      "signalReasons": [
+        "sender is a known bank domain (hdfcbank.net)",
+        "amount found: ₹1,299.00",
+        "reference found: UPIREF-DEMO-002",
+        "debit wording"
+      ],
+      "extractedAmount": 129900,
+      "extractedChannel": "UPI",
+      "extractedRef": "UPIREF-DEMO-002",
+      "record_id": "hf_68a285acbd107149",
+      "cluster_size": 3,
+      "duplicate_of": null,
+      "structured": {
+        "schema_version": "haq.email.v1",
+        "email_id": "msg-011",
+        "record_id": "hf_68a285acbd107149",
+        "role": "debit",
+        "duplicate": false,
+        "duplicate_of": null,
+        "cluster_size": 3,
+        "sender": "hdfcbank.net",
+        "subject": "Alert: UPI debit of Rs 1,299.00 for STEAM purchase",
+        "date": "2026-11-05",
+        "amount_paise": 129900,
+        "reference": "UPIREF-DEMO-002",
+        "segment": "consumer",
+        "vertical": "gaming",
+        "labels": [
+          "upi_failed_debited",
+          "upi",
+          "merchant:steam",
+          "gaming",
+          "consumer",
+          "refund-received",
+          "rule-seeded",
+          "refund_credited",
+          "debit"
+        ],
+        "needs_review": false
+      }
+    },
+    {
+      "id": "msg-013",
+      "sender": "hdfcbank.net",
+      "subject": "Alert: Reversal credit of Rs 1,299.00 received",
+      "date": "12 Nov 2026, 09:02",
+      "snippet": "Account **XXXX credited with Rs 1,299.00 by UPI Reversal / STEAM / UPIREF-DEMO-002.",
+      "status": "financial_alert",
+      "filterTag": "Reversal / refund credit",
+      "signalKind": "refund_credited",
+      "signalReasons": [
+        "sender is a known bank domain (hdfcbank.net)",
+        "amount found: ₹1,299.00",
+        "reversal or refund credited"
+      ],
+      "extractedAmount": 129900,
+      "extractedChannel": "UPI",
+      "extractedRef": null,
+      "record_id": "hf_68a285acbd107149",
+      "cluster_size": 3,
+      "duplicate_of": null,
+      "structured": {
+        "schema_version": "haq.email.v1",
+        "email_id": "msg-013",
+        "record_id": "hf_68a285acbd107149",
+        "role": "refund",
+        "duplicate": false,
+        "duplicate_of": null,
+        "cluster_size": 3,
+        "sender": "hdfcbank.net",
+        "subject": "Alert: Reversal credit of Rs 1,299.00 received",
+        "date": "2026-11-12",
+        "amount_paise": 129900,
+        "reference": null,
+        "segment": "consumer",
+        "vertical": "gaming",
+        "labels": [
+          "upi_failed_debited",
+          "upi",
+          "merchant:steam",
+          "gaming",
+          "consumer",
+          "refund-received",
+          "rule-seeded",
+          "refund_credited",
+          "refund"
+        ],
+        "needs_review": false
+      }
+    },
+    {
+      "id": "msg-014",
+      "sender": "techbuyer-corp.in",
+      "subject": "Payment received: Invoice #MSME-2026-441",
+      "date": "10 Nov 2026, 12:40",
+      "snippet": "Remittance advice: payment of Rs 1,42,800.00 for Invoice #MSME-2026-441 has been received.",
+      "status": "financial_alert",
+      "filterTag": "Invoice payment confirmation",
+      "signalKind": "invoice_paid",
+      "signalReasons": [
+        "amount found: ₹142,800.00",
+        "reference found: MSME-2026-441",
+        "invoice wording with payment-received wording"
+      ],
+      "extractedAmount": 14280000,
+      "extractedChannel": "MSME",
+      "extractedRef": "MSME-2026-441",
+      "record_id": "hf_0ebf4300b5c0c9b2",
+      "cluster_size": 2,
+      "duplicate_of": null,
+      "structured": {
+        "schema_version": "haq.email.v1",
+        "email_id": "msg-014",
+        "record_id": "hf_0ebf4300b5c0c9b2",
+        "role": "payment",
+        "duplicate": false,
+        "duplicate_of": null,
+        "cluster_size": 2,
+        "sender": "techbuyer-corp.in",
+        "subject": "Payment received: Invoice #MSME-2026-441",
+        "date": "2026-11-10",
+        "amount_paise": 14280000,
+        "reference": "MSME-2026-441",
+        "segment": "business",
+        "vertical": "business",
+        "labels": [
+          "msme_invoice_overdue",
+          "msme",
+          "merchant:techbuyer-corp",
+          "business",
+          "refund-received",
+          "rule-seeded",
+          "invoice_paid",
+          "overdue_invoice",
+          "payment"
+        ],
+        "needs_review": false
+      }
     },
     {
       "id": "msg-006",
-      "sender": "<EMAIL_1>",
+      "sender": "swiggy.in",
       "subject": "Craving Biryani? Get 50% flat off on tonight’s feast!",
       "date": "03 Nov 2026, 19:00",
       "snippet": "Use code TASTY50 on orders above Rs 299. Explore top rated restaurants near you now...",
@@ -109,11 +511,14 @@
       "filterTag": "Promotional noise filtered",
       "signalReasons": [
         "promotional wording, no payment event"
-      ]
+      ],
+      "record_id": null,
+      "cluster_size": 0,
+      "duplicate_of": null
     },
     {
       "id": "msg-007",
-      "sender": "<EMAIL_1>",
+      "sender": "google.com",
       "subject": "Google Verification Code: 482910",
       "date": "04 Nov 2026, 09:12",
       "snippet": "Your one-time verification code is 482910. Never share this code with anyone...",
@@ -121,11 +526,14 @@
       "filterTag": "OTP / verification filtered",
       "signalReasons": [
         "OTP wording with no amount"
-      ]
+      ],
+      "record_id": null,
+      "cluster_size": 0,
+      "duplicate_of": null
     },
     {
       "id": "msg-008",
-      "sender": "<EMAIL_1>",
+      "sender": "linkedin.com",
       "subject": "Shivansh, you appeared in 14 searches this week",
       "date": "05 Nov 2026, 10:15",
       "snippet": "See who is looking for skills like Python, AI Agents, and React in your area...",
@@ -133,11 +541,14 @@
       "filterTag": "Developer / social notification filtered",
       "signalReasons": [
         "blocked sender domain linkedin.com"
-      ]
+      ],
+      "record_id": null,
+      "cluster_size": 0,
+      "duplicate_of": null
     },
     {
       "id": "msg-009",
-      "sender": "<EMAIL_1>",
+      "sender": "amazon.in",
       "subject": "Delivered: Your package with Noise Cancelling Earphones",
       "date": "06 Nov 2026, 16:30",
       "snippet": "Your order was handed directly to a resident. Let us know how delivery went...",
@@ -145,7 +556,10 @@
       "filterTag": "Financial wording but no payment event",
       "signalReasons": [
         "no failure, cancellation, debit or refund pattern"
-      ]
+      ],
+      "record_id": null,
+      "cluster_size": 0,
+      "duplicate_of": null
     }
   ],
   "candidates": [
@@ -156,22 +570,58 @@
       "narration_clean": "Debit followed by a matching reversal",
       "debit": 200000,
       "channel": "UPI",
-      "ref": "431209845123",
+      "ref": "UPIREF-DEMO-001",
       "parse_confidence": 0.9,
       "evidence_status": "paired_reversal",
       "reversal_seen": true,
       "email_source": {
-        "sender": "<EMAIL_1>",
+        "sender": "hdfcbank.net",
         "subject": "Alert: Your HDFC Bank account was debited for UPI txn Rs 2,000.00",
-        "snippet": "Rs 2,000.00 debited from account **9122 via UPI to SWIGGY. UPI Ref 431209845123. If not done by you, report to bank."
+        "snippet": "Rs 2,000.00 debited from account **XXXX via UPI to SWIGGY. UPI Ref UPIREF-DEMO-001. If not done by you, report to bank."
       },
       "related_sources": [
         {
-          "sender": "<EMAIL_1>",
+          "sender": "phonepe.com",
           "subject": "Payment Failed: Your payment of Rs 2,000 at Swiggy was not completed",
           "snippet": "Your payment failed at merchant end. Amount debited from your bank will be reversed automatically within RBI TAT."
         }
       ]
+    },
+    {
+      "txn_id": "gmail-msg-010",
+      "date": "2026-11-03",
+      "reversal_date": "2026-11-09",
+      "narration_clean": "Debit followed by a matching reversal",
+      "debit": 200000,
+      "channel": "UPI",
+      "ref": "UPIREF-DEMO-001",
+      "parse_confidence": 0.9,
+      "evidence_status": "paired_reversal",
+      "reversal_seen": true,
+      "email_source": {
+        "sender": "hdfcbank.net",
+        "subject": "Alert: Your HDFC Bank account was debited for UPI txn Rs 2,000.00",
+        "snippet": "Rs 2,000.00 debited from account **XXXX via UPI to SWIGGY. UPI Ref UPIREF-DEMO-001."
+      },
+      "related_sources": []
+    },
+    {
+      "txn_id": "gmail-msg-011",
+      "date": "2026-11-05",
+      "reversal_date": "2026-11-12",
+      "narration_clean": "Debit followed by a matching reversal",
+      "debit": 129900,
+      "channel": "UPI",
+      "ref": "UPIREF-DEMO-002",
+      "parse_confidence": 0.9,
+      "evidence_status": "paired_reversal",
+      "reversal_seen": true,
+      "email_source": {
+        "sender": "hdfcbank.net",
+        "subject": "Alert: UPI debit of Rs 1,299.00 for STEAM purchase",
+        "snippet": "Rs 1,299.00 debited via UPI to STEAM. UPI Ref UPIREF-DEMO-002."
+      },
+      "related_sources": []
     },
     {
       "txn_id": "gmail-msg-004",
@@ -185,7 +635,7 @@
       "evidence_status": "potential_exception",
       "reversal_seen": false,
       "email_source": {
-        "sender": "<EMAIL_1>",
+        "sender": "sbi.co.in",
         "subject": "Transaction Alert: ATM Cash Dispense Incomplete Rs 5,000.00",
         "snippet": "Dear Customer, txn at ATM 9422 failed to dispense cash Rs 5,000. Ref: ATM8829103. If not reversed in 5 days, contact branch."
       },
@@ -203,9 +653,45 @@
       "evidence_status": "potential_exception",
       "reversal_seen": false,
       "email_source": {
-        "sender": "<EMAIL_1>",
+        "sender": "techbuyer-corp.in",
         "subject": "Overdue Notice: Payment status for Invoice #MSME-2026-441",
         "snippet": "Dear Supplier, regarding your tax invoice #MSME-2026-441 for Rs 1,42,800.00, our finance team is processing approval. Dues are overdue by 42 days."
+      },
+      "related_sources": []
+    },
+    {
+      "txn_id": "gmail-msg-012",
+      "date": "2026-11-05",
+      "reversal_date": "2026-11-12",
+      "narration_clean": "Payment failed and the message mentions a debit",
+      "debit": 129900,
+      "channel": "CARD",
+      "ref": null,
+      "parse_confidence": 0.9,
+      "evidence_status": "paired_reversal",
+      "reversal_seen": true,
+      "email_source": {
+        "sender": "steampowered.com",
+        "subject": "Purchase failed: Steam wallet top-up of Rs 1,299",
+        "snippet": "Your Steam wallet top-up failed. Any debited amount will be reversed."
+      },
+      "related_sources": []
+    },
+    {
+      "txn_id": "gmail-msg-014",
+      "date": "2026-11-10",
+      "reversal_date": null,
+      "narration_clean": "Invoice payment confirmation",
+      "debit": 14280000,
+      "channel": "MSME",
+      "ref": "MSME-2026-441",
+      "parse_confidence": 0.75,
+      "evidence_status": "potential_exception",
+      "reversal_seen": false,
+      "email_source": {
+        "sender": "techbuyer-corp.in",
+        "subject": "Payment received: Invoice #MSME-2026-441",
+        "snippet": "Remittance advice: payment of Rs 1,42,800.00 for Invoice #MSME-2026-441 has been received."
       },
       "related_sources": []
     }
@@ -226,7 +712,7 @@
           "reference": "ATM8829103",
           "event_date": "2026-10-28",
           "quote": "State Bank Alert: Your card **4412 attempted cash withdrawal of Rs 5,000.00 at ATM S1NW009422. Cash was not dispensed due to terminal timeout. Txn Ref: ATM8829103.",
-          "sender": "no-reply@sbi.co.in",
+          "sender": "sbi.co.in",
           "subject": "Transaction Alert: ATM Cash Dispense Incomplete Rs 5,000.00",
           "confidence": "High",
           "reasons": [
@@ -234,7 +720,9 @@
             "amount found: ₹5,000.00",
             "reference found: ATM8829103",
             "ATM wording with failure wording"
-          ]
+          ],
+          "signal_kind": "atm_failure",
+          "channel": "ATM"
         }
       ],
       "amount_paise": 500000,
@@ -245,7 +733,7 @@
       "status": "open"
     },
     {
-      "case_id": "3d95deeefe0b9a0d",
+      "case_id": "bde364cccad7930a",
       "claim_type": "msme_invoice_overdue",
       "rule_id": "R-007",
       "rule_status": "Seeded",
@@ -259,47 +747,168 @@
           "reference": "MSME-2026-441",
           "event_date": "2026-10-15",
           "quote": "Dear Shivansh, regarding Invoice #MSME-2026-441 for software development services (amount: Rs 1,42,800.00, acceptance date: 03-Sep-2026), our audit is underway. We acknowledge dues are overdue.",
-          "sender": "accounts@techbuyer-corp.in",
+          "sender": "techbuyer-corp.in",
           "subject": "Overdue Notice: Payment status for Invoice #MSME-2026-441",
           "confidence": "Medium",
           "reasons": [
             "amount found: ₹142,800.00",
             "reference found: MSME-2026-441",
             "invoice wording with overdue wording"
-          ]
+          ],
+          "signal_kind": "overdue_invoice",
+          "channel": "MSME"
+        },
+        {
+          "event_id": "9fc2e0b5b39b1a6c",
+          "email_id": "msg-014",
+          "claim_type": "msme_invoice_overdue",
+          "event_type": "payment_received",
+          "amount_paise": 14280000,
+          "reference": "MSME-2026-441",
+          "event_date": "2026-11-10",
+          "quote": "Dear Shivansh, this is a remittance advice confirming that payment of Rs 1,42,800.00 against Invoice #MSME-2026-441 has been received by our accounts team and settled on 10-Nov-2026.",
+          "sender": "techbuyer-corp.in",
+          "subject": "Payment received: Invoice #MSME-2026-441",
+          "confidence": "Medium",
+          "reasons": [
+            "amount found: ₹142,800.00",
+            "reference found: MSME-2026-441",
+            "invoice wording with payment-received wording"
+          ],
+          "signal_kind": "invoice_paid",
+          "channel": "MSME"
         }
       ],
       "amount_paise": 14280000,
       "reference": "MSME-2026-441",
       "deadline": null,
-      "resolved_on": null,
+      "resolved_on": "2026-11-10",
       "days_overdue": null,
-      "status": "open"
+      "status": "resolved_on_time"
     },
     {
-      "case_id": "7c459e505b54c0b6",
+      "case_id": "255f83f37c474688",
       "claim_type": "upi_failed_debited",
       "rule_id": "R-001",
       "rule_status": "Seeded",
       "events": [
         {
-          "event_id": "d78e92a81c3352c0",
+          "event_id": "0be4f2cf42ffac58",
+          "email_id": "msg-011",
+          "claim_type": "upi_failed_debited",
+          "event_type": "debit",
+          "amount_paise": 129900,
+          "reference": "UPIREF-DEMO-002",
+          "event_date": "2026-11-05",
+          "quote": "Dear Customer, Rs 1,299.00 has been debited from your account **XXXX on 05-Nov-2026 towards UPI txn to STEAM. UPI Reference Number: UPIREF-DEMO-002.",
+          "sender": "hdfcbank.net",
+          "subject": "Alert: UPI debit of Rs 1,299.00 for STEAM purchase",
+          "confidence": "High",
+          "reasons": [
+            "sender is a known bank domain (hdfcbank.net)",
+            "amount found: ₹1,299.00",
+            "reference found: UPIREF-DEMO-002",
+            "debit wording"
+          ],
+          "signal_kind": "debit",
+          "channel": "UPI"
+        },
+        {
+          "event_id": "1ed6c5f6791ad533",
+          "email_id": "msg-012",
+          "claim_type": "card_debited_order_unconfirmed",
+          "event_type": "payment_failed",
+          "amount_paise": 129900,
+          "reference": null,
+          "event_date": "2026-11-05",
+          "quote": "Your in-app purchase of Rs 1,299 for a Steam wallet top-up failed at the payment provider. The debited amount will be reversed automatically.",
+          "sender": "steampowered.com",
+          "subject": "Purchase failed: Steam wallet top-up of Rs 1,299",
+          "confidence": "High",
+          "reasons": [
+            "sender is a known merchant domain (steampowered.com)",
+            "amount found: ₹1,299.00",
+            "failure wording",
+            "debit wording: money may have left the account"
+          ],
+          "signal_kind": "upi_failed_debited",
+          "channel": "CARD"
+        },
+        {
+          "event_id": "adb0d6450810ba0c",
+          "email_id": "msg-013",
+          "claim_type": "upi_failed_debited",
+          "event_type": "refund_credited",
+          "amount_paise": 129900,
+          "reference": null,
+          "event_date": "2026-11-12",
+          "quote": "Dear Customer, account **XXXX credited with Rs 1,299.00 on 12-Nov-2026 by UPI Reversal / STEAM / UPIREF-DEMO-002.",
+          "sender": "hdfcbank.net",
+          "subject": "Alert: Reversal credit of Rs 1,299.00 received",
+          "confidence": "High",
+          "reasons": [
+            "sender is a known bank domain (hdfcbank.net)",
+            "amount found: ₹1,299.00",
+            "reversal or refund credited"
+          ],
+          "signal_kind": "refund_credited",
+          "channel": "UPI"
+        }
+      ],
+      "amount_paise": 129900,
+      "reference": "UPIREF-DEMO-002",
+      "deadline": null,
+      "resolved_on": "2026-11-12",
+      "days_overdue": null,
+      "status": "resolved_on_time"
+    },
+    {
+      "case_id": "3adb1dc111ee075a",
+      "claim_type": "upi_failed_debited",
+      "rule_id": "R-001",
+      "rule_status": "Seeded",
+      "events": [
+        {
+          "event_id": "5662a007243711f9",
           "email_id": "msg-001",
           "claim_type": "upi_failed_debited",
           "event_type": "debit",
           "amount_paise": 200000,
-          "reference": "431209845123",
+          "reference": "UPIREF-DEMO-001",
           "event_date": "2026-11-03",
-          "quote": "Dear Customer, Rs 2,000.00 has been debited from your account **9122 on 03-Nov-2026 towards UPI txn to SWIGGY. UPI Reference Number: [ID REDACTED]. If this was not authorized by you, call 1800-202-6161.",
-          "sender": "alerts@hdfcbank.net",
+          "quote": "Dear Customer, Rs 2,000.00 has been debited from your account **XXXX on 03-Nov-2026 towards UPI txn to SWIGGY. UPI Reference Number: UPIREF-DEMO-001. If this was not authorized by you, contact your bank.",
+          "sender": "hdfcbank.net",
           "subject": "Alert: Your HDFC Bank account was debited for UPI txn Rs 2,000.00",
           "confidence": "High",
           "reasons": [
             "sender is a known bank domain (hdfcbank.net)",
             "amount found: ₹2,000.00",
-            "reference found: 431209845123",
+            "reference found: UPIREF-DEMO-001",
             "debit wording"
-          ]
+          ],
+          "signal_kind": "debit",
+          "channel": "UPI"
+        },
+        {
+          "event_id": "85ecf1ca92221be6",
+          "email_id": "msg-010",
+          "claim_type": "upi_failed_debited",
+          "event_type": "debit",
+          "amount_paise": 200000,
+          "reference": "UPIREF-DEMO-001",
+          "event_date": "2026-11-03",
+          "quote": "Dear Customer, Rs 2,000.00 has been debited from your account **XXXX on 03-Nov-2026 towards UPI txn to SWIGGY. UPI Reference Number: UPIREF-DEMO-001.",
+          "sender": "hdfcbank.net",
+          "subject": "Alert: Your HDFC Bank account was debited for UPI txn Rs 2,000.00",
+          "confidence": "High",
+          "reasons": [
+            "sender is a known bank domain (hdfcbank.net)",
+            "amount found: ₹2,000.00",
+            "reference found: UPIREF-DEMO-001",
+            "debit wording"
+          ],
+          "signal_kind": "debit",
+          "channel": "UPI"
         },
         {
           "event_id": "e8e134808dc05bb5",
@@ -310,7 +919,7 @@
           "reference": null,
           "event_date": "2026-11-03",
           "quote": "Hi Shivansh, your transaction of Rs 2,000 at Swiggy failed. Since money was debited from your bank account, it will be refunded back as per the RBI turnaround time framework.",
-          "sender": "support@phonepe.com",
+          "sender": "phonepe.com",
           "subject": "Payment Failed: Your payment of Rs 2,000 at Swiggy was not completed",
           "confidence": "High",
           "reasons": [
@@ -318,30 +927,33 @@
             "amount found: ₹2,000.00",
             "failure wording",
             "debit wording: money may have left the account"
-          ]
+          ],
+          "signal_kind": "upi_failed_debited",
+          "channel": "UPI"
         },
         {
-          "event_id": "30658faecfcd5fb6",
+          "event_id": "7cffa130d155be30",
           "email_id": "msg-003",
           "claim_type": "upi_failed_debited",
           "event_type": "refund_credited",
           "amount_paise": 200000,
-          "reference": "431209845123",
+          "reference": null,
           "event_date": "2026-11-09",
-          "quote": "Dear Customer, account **9122 credited with Rs 2,000.00 on 09-Nov-2026 11:05:12 by UPI Reversal / SWIGGY / [ID REDACTED]. Available balance: Rs 20,420.00.",
-          "sender": "alerts@hdfcbank.net",
+          "quote": "Dear Customer, account **XXXX credited with Rs 2,000.00 on 09-Nov-2026 11:05:12 by UPI Reversal / SWIGGY / UPIREF-DEMO-001. Available balance: Rs 20,420.00.",
+          "sender": "hdfcbank.net",
           "subject": "Alert: Reversal credit of Rs 2,000.00 received in your account",
           "confidence": "High",
           "reasons": [
             "sender is a known bank domain (hdfcbank.net)",
             "amount found: ₹2,000.00",
-            "reference found: 431209845123",
             "reversal or refund credited"
-          ]
+          ],
+          "signal_kind": "refund_credited",
+          "channel": "UPI"
         }
       ],
       "amount_paise": 200000,
-      "reference": "431209845123",
+      "reference": "UPIREF-DEMO-001",
       "deadline": null,
       "resolved_on": "2026-11-09",
       "days_overdue": null,
@@ -370,27 +982,1169 @@
       "rule_status": "Seeded",
       "deadline": null,
       "days_overdue": null
+    }
+  ],
+  "flagged_records": [
+    {
+      "schema_version": "haq.flag.v1",
+      "record_id": "hf_f1d4a098b308496a",
+      "identity_keys": [
+        "claim:atm_cash_not_dispensed|ref:atm8829103"
+      ],
+      "case_id": "1046ecd53b7fb0e5",
+      "title": "ATM cash not dispensed after debit",
+      "claim_type": "atm_cash_not_dispensed",
+      "category_label": "ATM cash not dispensed",
+      "segment": "consumer",
+      "vertical": "finance",
+      "status": "tracking",
+      "status_label": "Waiting for cash reversal",
+      "amount": {
+        "value_paise": 500000,
+        "currency": "INR",
+        "display": "₹5,000.00"
+      },
+      "transaction": {
+        "reference": "ATM8829103",
+        "channel": "ATM",
+        "merchant": "State Bank of India",
+        "origin_date": "2026-10-28",
+        "origin_email_id": "msg-004"
+      },
+      "resolution": {
+        "kind": "cash",
+        "received": false,
+        "received_on": null,
+        "days_to_resolution": null,
+        "evidence_email_ids": [],
+        "label": "Cash reversal not seen yet"
+      },
+      "legal": {
+        "rule_id": "R-003",
+        "rule_status": "Seeded",
+        "rule_verified": false,
+        "stamp": "UNVERIFIED RULE",
+        "statutory_days": 5,
+        "deadline_date": null,
+        "indicative_deadline_date": "2026-11-02",
+        "days_overdue": null,
+        "compliance": "not_received_rule_unverified",
+        "compliance_label": "No cash reversal yet; the linked rule is not verified",
+        "compensation": {
+          "computed": false,
+          "amount_paise": null,
+          "indicative_paise": 100000,
+          "daily_rate_paise": 10000,
+          "note": "Indicative only: the linked rule is not verified, so Haq does not treat this as a legal amount."
+        },
+        "citation": "RBI Harmonised TAT circular (DPSS.CO.PD No.629/02.01.014/2019-20)",
+        "note": "The linked rule R-003 is Seeded, so the turnaround time and any amount are shown only as an indicative reference, not a legal conclusion."
+      },
+      "labels": [
+        "atm_cash_not_dispensed",
+        "atm",
+        "merchant:state-bank-of-india",
+        "finance",
+        "consumer",
+        "refund-pending",
+        "rule-seeded",
+        "atm_failure"
+      ],
+      "risk_flags": [
+        "rule_not_verified",
+        "refund_not_received"
+      ],
+      "evidence": [
+        {
+          "email_id": "msg-004",
+          "role": "atm_failure",
+          "duplicate": false,
+          "duplicate_of": null,
+          "date": "2026-10-28",
+          "sender": "sbi.co.in",
+          "subject": "Transaction Alert: ATM Cash Dispense Incomplete Rs 5,000.00",
+          "quote": "State Bank Alert: Your card **4412 attempted cash withdrawal of Rs 5,000.00 at ATM S1NW009422. Cash was not dispensed due to terminal timeout. Txn Ref: ATM8829103.",
+          "amount_paise": 500000,
+          "reference": "ATM8829103"
+        }
+      ],
+      "timeline": [
+        {
+          "date": "2026-10-28",
+          "event": "ATM cash not dispensed",
+          "email_id": "msg-004",
+          "amount_paise": 500000
+        }
+      ],
+      "recommended_actions": [
+        "Raise a complaint with the ATM-issuing bank and keep the ATM ID and transaction reference.",
+        "Ask for the ATM journal/trace and a written reversal timeline.",
+        "If unresolved, escalate to the bank's Principal Nodal Officer and then the RBI Ombudsman."
+      ],
+      "ai": {
+        "status": "disabled",
+        "model": null,
+        "summary": null,
+        "merchant": null,
+        "vertical": null,
+        "segment": null,
+        "labels": [],
+        "conflicts": [],
+        "needs_review": false
+      },
+      "tracking": {
+        "first_seen_at": "2026-11-12T15:45:43.264610Z",
+        "last_seen_at": "2026-11-12T15:45:43.264610Z",
+        "sweep_count": 1
+      },
+      "needs_review": false,
+      "safety_note": "Haq reports what the linked rule says. This is an evidence record, not legal advice."
     },
     {
-      "case_id": "3d95deeefe0b9a0d",
+      "schema_version": "haq.flag.v1",
+      "record_id": "hf_0ebf4300b5c0c9b2",
+      "identity_keys": [
+        "claim:msme_invoice_overdue|ref:msme-2026-441"
+      ],
+      "case_id": "bde364cccad7930a",
+      "title": "Overdue MSME invoice",
       "claim_type": "msme_invoice_overdue",
-      "draft": "Subject: Request to resolve overdue MSME invoice\n\nHello,\n\nI am following up on the overdue invoice for ₹142,800.00, referenced as MSME-2026-441. The current case status is open.\n\nThe linked rule is R-007 and is marked Seeded.\nPlease confirm the accepted amount, payment date, and any documented dispute. I have attached the invoice, acceptance evidence, correspondence, and ledger records.\n\nRegards,\n[Supplier name]\n",
-      "evidence_checklist": [
-        "invoice",
-        "delivery or acceptance proof",
-        "buyer acknowledgement",
-        "ledger",
-        "bank statement"
+      "category_label": "Overdue business invoice",
+      "segment": "business",
+      "vertical": "business",
+      "status": "resolved",
+      "status_label": "Payment received",
+      "amount": {
+        "value_paise": 14280000,
+        "currency": "INR",
+        "display": "₹142,800.00"
+      },
+      "transaction": {
+        "reference": "MSME-2026-441",
+        "channel": "MSME",
+        "merchant": "Techbuyer Corp",
+        "origin_date": "2026-10-15",
+        "origin_email_id": "msg-005"
+      },
+      "resolution": {
+        "kind": "payment",
+        "received": true,
+        "received_on": "2026-11-10",
+        "days_to_resolution": 26,
+        "evidence_email_ids": [
+          "msg-014"
+        ],
+        "label": "Payment received"
+      },
+      "legal": {
+        "rule_id": "R-007",
+        "rule_status": "Seeded",
+        "rule_verified": false,
+        "stamp": "UNVERIFIED RULE",
+        "statutory_days": null,
+        "deadline_date": null,
+        "indicative_deadline_date": null,
+        "days_overdue": null,
+        "compliance": "received_rule_unverified",
+        "compliance_label": "Payment received; the linked rule is not verified",
+        "compensation": {
+          "computed": false,
+          "amount_paise": null,
+          "indicative_paise": null,
+          "daily_rate_paise": null,
+          "note": "No verified daily-rate rule is linked, so no compensation is computed."
+        },
+        "citation": "MSMED Act 2006 (Sections 15-16)",
+        "note": "The linked rule R-007 is Seeded, so the turnaround time and any amount are shown only as an indicative reference, not a legal conclusion."
+      },
+      "labels": [
+        "msme_invoice_overdue",
+        "msme",
+        "merchant:techbuyer-corp",
+        "business",
+        "refund-received",
+        "rule-seeded",
+        "invoice_paid",
+        "overdue_invoice"
       ],
-      "escalation": [
-        "buyer accounts team",
-        "buyer grievance officer",
-        "facilitation council"
+      "risk_flags": [
+        "rule_not_verified"
       ],
-      "rule_id": "R-007",
-      "rule_status": "Seeded",
-      "deadline": null,
-      "days_overdue": null
+      "evidence": [
+        {
+          "email_id": "msg-005",
+          "role": "invoice",
+          "duplicate": false,
+          "duplicate_of": null,
+          "date": "2026-10-15",
+          "sender": "techbuyer-corp.in",
+          "subject": "Overdue Notice: Payment status for Invoice #MSME-2026-441",
+          "quote": "Dear Shivansh, regarding Invoice #MSME-2026-441 for software development services (amount: Rs 1,42,800.00, acceptance date: 03-Sep-2026), our audit is underway. We acknowledge dues are overdue.",
+          "amount_paise": 14280000,
+          "reference": "MSME-2026-441"
+        },
+        {
+          "email_id": "msg-014",
+          "role": "payment",
+          "duplicate": false,
+          "duplicate_of": null,
+          "date": "2026-11-10",
+          "sender": "techbuyer-corp.in",
+          "subject": "Payment received: Invoice #MSME-2026-441",
+          "quote": "Dear Shivansh, this is a remittance advice confirming that payment of Rs 1,42,800.00 against Invoice #MSME-2026-441 has been received by our accounts team and settled on 10-Nov-2026.",
+          "amount_paise": 14280000,
+          "reference": "MSME-2026-441"
+        }
+      ],
+      "timeline": [
+        {
+          "date": "2026-10-15",
+          "event": "Invoice marked overdue",
+          "email_id": "msg-005",
+          "amount_paise": 14280000
+        },
+        {
+          "date": "2026-11-10",
+          "event": "Invoice payment received",
+          "email_id": "msg-014",
+          "amount_paise": 14280000
+        }
+      ],
+      "recommended_actions": [
+        "Payment appears received; confirm the credited amount matches the invoice.",
+        "Send a written demand to the buyer's accounts team quoting the invoice number and due date.",
+        "Keep the invoice, delivery or acceptance proof, and the buyer's acknowledgement together.",
+        "If unpaid, ask about the MSME Facilitation Council route (Section 18) and record every reminder."
+      ],
+      "ai": {
+        "status": "disabled",
+        "model": null,
+        "summary": null,
+        "merchant": null,
+        "vertical": null,
+        "segment": null,
+        "labels": [],
+        "conflicts": [],
+        "needs_review": false
+      },
+      "tracking": {
+        "first_seen_at": "2026-11-12T15:45:43.264610Z",
+        "last_seen_at": "2026-11-12T15:45:43.264610Z",
+        "sweep_count": 1
+      },
+      "needs_review": false,
+      "safety_note": "Haq reports what the linked rule says. This is an evidence record, not legal advice."
+    },
+    {
+      "schema_version": "haq.flag.v1",
+      "record_id": "hf_68a285acbd107149",
+      "identity_keys": [
+        "claim:upi_failed_debited|ref:upiref-demo-002"
+      ],
+      "case_id": "255f83f37c474688",
+      "title": "UPI/IMPS/NEFT debited without credit or reversal",
+      "claim_type": "upi_failed_debited",
+      "category_label": "Failed payment, money debited",
+      "segment": "consumer",
+      "vertical": "gaming",
+      "status": "resolved",
+      "status_label": "Refund received",
+      "amount": {
+        "value_paise": 129900,
+        "currency": "INR",
+        "display": "₹1,299.00"
+      },
+      "transaction": {
+        "reference": "UPIREF-DEMO-002",
+        "channel": "UPI",
+        "merchant": "Steam",
+        "origin_date": "2026-11-05",
+        "origin_email_id": "msg-011"
+      },
+      "resolution": {
+        "kind": "refund",
+        "received": true,
+        "received_on": "2026-11-12",
+        "days_to_resolution": 7,
+        "evidence_email_ids": [
+          "msg-013"
+        ],
+        "label": "Refund received"
+      },
+      "legal": {
+        "rule_id": "R-001",
+        "rule_status": "Seeded",
+        "rule_verified": false,
+        "stamp": "UNVERIFIED RULE",
+        "statutory_days": 1,
+        "deadline_date": null,
+        "indicative_deadline_date": "2026-11-06",
+        "days_overdue": null,
+        "compliance": "received_rule_unverified",
+        "compliance_label": "Refund received; the linked rule is not verified",
+        "compensation": {
+          "computed": false,
+          "amount_paise": null,
+          "indicative_paise": 60000,
+          "daily_rate_paise": 10000,
+          "note": "Indicative only: the linked rule is not verified, so Haq does not treat this as a legal amount."
+        },
+        "citation": "RBI Harmonised TAT circular (DPSS.CO.PD No.629/02.01.014/2019-20)",
+        "note": "The linked rule R-001 is Seeded, so the turnaround time and any amount are shown only as an indicative reference, not a legal conclusion."
+      },
+      "labels": [
+        "upi_failed_debited",
+        "upi",
+        "merchant:steam",
+        "gaming",
+        "consumer",
+        "refund-received",
+        "rule-seeded",
+        "refund_credited"
+      ],
+      "risk_flags": [
+        "rule_not_verified"
+      ],
+      "evidence": [
+        {
+          "email_id": "msg-011",
+          "role": "debit",
+          "duplicate": false,
+          "duplicate_of": null,
+          "date": "2026-11-05",
+          "sender": "hdfcbank.net",
+          "subject": "Alert: UPI debit of Rs 1,299.00 for STEAM purchase",
+          "quote": "Dear Customer, Rs 1,299.00 has been debited from your account **XXXX on 05-Nov-2026 towards UPI txn to STEAM. UPI Reference Number: UPIREF-DEMO-002.",
+          "amount_paise": 129900,
+          "reference": "UPIREF-DEMO-002"
+        },
+        {
+          "email_id": "msg-012",
+          "role": "failure",
+          "duplicate": false,
+          "duplicate_of": null,
+          "date": "2026-11-05",
+          "sender": "steampowered.com",
+          "subject": "Purchase failed: Steam wallet top-up of Rs 1,299",
+          "quote": "Your in-app purchase of Rs 1,299 for a Steam wallet top-up failed at the payment provider. The debited amount will be reversed automatically.",
+          "amount_paise": 129900,
+          "reference": null
+        },
+        {
+          "email_id": "msg-013",
+          "role": "refund",
+          "duplicate": false,
+          "duplicate_of": null,
+          "date": "2026-11-12",
+          "sender": "hdfcbank.net",
+          "subject": "Alert: Reversal credit of Rs 1,299.00 received",
+          "quote": "Dear Customer, account **XXXX credited with Rs 1,299.00 on 12-Nov-2026 by UPI Reversal / STEAM / UPIREF-DEMO-002.",
+          "amount_paise": 129900,
+          "reference": null
+        }
+      ],
+      "timeline": [
+        {
+          "date": "2026-11-05",
+          "event": "Money debited",
+          "email_id": "msg-011",
+          "amount_paise": 129900
+        },
+        {
+          "date": "2026-11-05",
+          "event": "Payment failed",
+          "email_id": "msg-012",
+          "amount_paise": 129900
+        },
+        {
+          "date": "2026-11-12",
+          "event": "Refund credited",
+          "email_id": "msg-013",
+          "amount_paise": 129900
+        }
+      ],
+      "recommended_actions": [
+        "Refund appears received; compare the credit date with the rule's turnaround time.",
+        "If the credit was late, ask the bank or payment app to confirm any compensation in writing."
+      ],
+      "ai": {
+        "status": "disabled",
+        "model": null,
+        "summary": null,
+        "merchant": null,
+        "vertical": null,
+        "segment": null,
+        "labels": [],
+        "conflicts": [],
+        "needs_review": false
+      },
+      "tracking": {
+        "first_seen_at": "2026-11-12T15:45:43.264610Z",
+        "last_seen_at": "2026-11-12T15:45:43.264610Z",
+        "sweep_count": 1
+      },
+      "needs_review": false,
+      "safety_note": "Haq reports what the linked rule says. This is an evidence record, not legal advice."
+    },
+    {
+      "schema_version": "haq.flag.v1",
+      "record_id": "hf_9e96891873d85056",
+      "identity_keys": [
+        "claim:upi_failed_debited|ref:upiref-demo-001"
+      ],
+      "case_id": "3adb1dc111ee075a",
+      "title": "UPI/IMPS/NEFT debited without credit or reversal",
+      "claim_type": "upi_failed_debited",
+      "category_label": "Failed payment, money debited",
+      "segment": "consumer",
+      "vertical": "food_delivery",
+      "status": "resolved",
+      "status_label": "Refund received",
+      "amount": {
+        "value_paise": 200000,
+        "currency": "INR",
+        "display": "₹2,000.00"
+      },
+      "transaction": {
+        "reference": "UPIREF-DEMO-001",
+        "channel": "UPI",
+        "merchant": "Swiggy",
+        "origin_date": "2026-11-03",
+        "origin_email_id": "msg-001"
+      },
+      "resolution": {
+        "kind": "refund",
+        "received": true,
+        "received_on": "2026-11-09",
+        "days_to_resolution": 6,
+        "evidence_email_ids": [
+          "msg-003"
+        ],
+        "label": "Refund received"
+      },
+      "legal": {
+        "rule_id": "R-001",
+        "rule_status": "Seeded",
+        "rule_verified": false,
+        "stamp": "UNVERIFIED RULE",
+        "statutory_days": 1,
+        "deadline_date": null,
+        "indicative_deadline_date": "2026-11-04",
+        "days_overdue": null,
+        "compliance": "received_rule_unverified",
+        "compliance_label": "Refund received; the linked rule is not verified",
+        "compensation": {
+          "computed": false,
+          "amount_paise": null,
+          "indicative_paise": 50000,
+          "daily_rate_paise": 10000,
+          "note": "Indicative only: the linked rule is not verified, so Haq does not treat this as a legal amount."
+        },
+        "citation": "RBI Harmonised TAT circular (DPSS.CO.PD No.629/02.01.014/2019-20)",
+        "note": "The linked rule R-001 is Seeded, so the turnaround time and any amount are shown only as an indicative reference, not a legal conclusion."
+      },
+      "labels": [
+        "upi_failed_debited",
+        "upi",
+        "merchant:swiggy",
+        "food_delivery",
+        "consumer",
+        "refund-received",
+        "rule-seeded",
+        "refund_credited"
+      ],
+      "risk_flags": [
+        "rule_not_verified",
+        "duplicate_emails"
+      ],
+      "evidence": [
+        {
+          "email_id": "msg-001",
+          "role": "debit",
+          "duplicate": false,
+          "duplicate_of": null,
+          "date": "2026-11-03",
+          "sender": "hdfcbank.net",
+          "subject": "Alert: Your HDFC Bank account was debited for UPI txn Rs 2,000.00",
+          "quote": "Dear Customer, Rs 2,000.00 has been debited from your account **XXXX on 03-Nov-2026 towards UPI txn to SWIGGY. UPI Reference Number: UPIREF-DEMO-001. If this was not authorized by you, contact your bank.",
+          "amount_paise": 200000,
+          "reference": "UPIREF-DEMO-001"
+        },
+        {
+          "email_id": "msg-010",
+          "role": "debit",
+          "duplicate": true,
+          "duplicate_of": "msg-001",
+          "date": "2026-11-03",
+          "sender": "hdfcbank.net",
+          "subject": "Alert: Your HDFC Bank account was debited for UPI txn Rs 2,000.00",
+          "quote": "Dear Customer, Rs 2,000.00 has been debited from your account **XXXX on 03-Nov-2026 towards UPI txn to SWIGGY. UPI Reference Number: UPIREF-DEMO-001.",
+          "amount_paise": 200000,
+          "reference": "UPIREF-DEMO-001"
+        },
+        {
+          "email_id": "msg-002",
+          "role": "failure",
+          "duplicate": false,
+          "duplicate_of": null,
+          "date": "2026-11-03",
+          "sender": "phonepe.com",
+          "subject": "Payment Failed: Your payment of Rs 2,000 at Swiggy was not completed",
+          "quote": "Hi Shivansh, your transaction of Rs 2,000 at Swiggy failed. Since money was debited from your bank account, it will be refunded back as per the RBI turnaround time framework.",
+          "amount_paise": 200000,
+          "reference": null
+        },
+        {
+          "email_id": "msg-003",
+          "role": "refund",
+          "duplicate": false,
+          "duplicate_of": null,
+          "date": "2026-11-09",
+          "sender": "hdfcbank.net",
+          "subject": "Alert: Reversal credit of Rs 2,000.00 received in your account",
+          "quote": "Dear Customer, account **XXXX credited with Rs 2,000.00 on 09-Nov-2026 11:05:12 by UPI Reversal / SWIGGY / UPIREF-DEMO-001. Available balance: Rs 20,420.00.",
+          "amount_paise": 200000,
+          "reference": null
+        }
+      ],
+      "timeline": [
+        {
+          "date": "2026-11-03",
+          "event": "Money debited",
+          "email_id": "msg-001",
+          "amount_paise": 200000
+        },
+        {
+          "date": "2026-11-03",
+          "event": "Money debited",
+          "email_id": "msg-010",
+          "amount_paise": 200000
+        },
+        {
+          "date": "2026-11-03",
+          "event": "Payment failed",
+          "email_id": "msg-002",
+          "amount_paise": 200000
+        },
+        {
+          "date": "2026-11-09",
+          "event": "Refund credited",
+          "email_id": "msg-003",
+          "amount_paise": 200000
+        }
+      ],
+      "recommended_actions": [
+        "Refund appears received; compare the credit date with the rule's turnaround time.",
+        "If the credit was late, ask the bank or payment app to confirm any compensation in writing."
+      ],
+      "ai": {
+        "status": "disabled",
+        "model": null,
+        "summary": null,
+        "merchant": null,
+        "vertical": null,
+        "segment": null,
+        "labels": [],
+        "conflicts": [],
+        "needs_review": false
+      },
+      "tracking": {
+        "first_seen_at": "2026-11-12T15:45:43.264610Z",
+        "last_seen_at": "2026-11-12T15:45:43.264610Z",
+        "sweep_count": 1
+      },
+      "needs_review": true,
+      "safety_note": "Haq reports what the linked rule says. This is an evidence record, not legal advice."
     }
-  ]
+  ],
+  "ledger": {
+    "schema_version": "haq.ledger.v1",
+    "records": [
+      {
+        "schema_version": "haq.flag.v1",
+        "record_id": "hf_f1d4a098b308496a",
+        "identity_keys": [
+          "claim:atm_cash_not_dispensed|ref:atm8829103"
+        ],
+        "case_id": "1046ecd53b7fb0e5",
+        "title": "ATM cash not dispensed after debit",
+        "claim_type": "atm_cash_not_dispensed",
+        "category_label": "ATM cash not dispensed",
+        "segment": "consumer",
+        "vertical": "finance",
+        "status": "tracking",
+        "status_label": "Waiting for cash reversal",
+        "amount": {
+          "value_paise": 500000,
+          "currency": "INR",
+          "display": "₹5,000.00"
+        },
+        "transaction": {
+          "reference": "ATM8829103",
+          "channel": "ATM",
+          "merchant": "State Bank of India",
+          "origin_date": "2026-10-28",
+          "origin_email_id": "msg-004"
+        },
+        "resolution": {
+          "kind": "cash",
+          "received": false,
+          "received_on": null,
+          "days_to_resolution": null,
+          "evidence_email_ids": [],
+          "label": "Cash reversal not seen yet"
+        },
+        "legal": {
+          "rule_id": "R-003",
+          "rule_status": "Seeded",
+          "rule_verified": false,
+          "stamp": "UNVERIFIED RULE",
+          "statutory_days": 5,
+          "deadline_date": null,
+          "indicative_deadline_date": "2026-11-02",
+          "days_overdue": null,
+          "compliance": "not_received_rule_unverified",
+          "compliance_label": "No cash reversal yet; the linked rule is not verified",
+          "compensation": {
+            "computed": false,
+            "amount_paise": null,
+            "indicative_paise": 100000,
+            "daily_rate_paise": 10000,
+            "note": "Indicative only: the linked rule is not verified, so Haq does not treat this as a legal amount."
+          },
+          "citation": "RBI Harmonised TAT circular (DPSS.CO.PD No.629/02.01.014/2019-20)",
+          "note": "The linked rule R-003 is Seeded, so the turnaround time and any amount are shown only as an indicative reference, not a legal conclusion."
+        },
+        "labels": [
+          "atm_cash_not_dispensed",
+          "atm",
+          "merchant:state-bank-of-india",
+          "finance",
+          "consumer",
+          "refund-pending",
+          "rule-seeded",
+          "atm_failure"
+        ],
+        "risk_flags": [
+          "rule_not_verified",
+          "refund_not_received"
+        ],
+        "evidence": [
+          {
+            "email_id": "msg-004",
+            "role": "atm_failure",
+            "duplicate": false,
+            "duplicate_of": null,
+            "date": "2026-10-28",
+            "sender": "sbi.co.in",
+            "subject": "Transaction Alert: ATM Cash Dispense Incomplete Rs 5,000.00",
+            "quote": "State Bank Alert: Your card **4412 attempted cash withdrawal of Rs 5,000.00 at ATM S1NW009422. Cash was not dispensed due to terminal timeout. Txn Ref: ATM8829103.",
+            "amount_paise": 500000,
+            "reference": "ATM8829103"
+          }
+        ],
+        "timeline": [
+          {
+            "date": "2026-10-28",
+            "event": "ATM cash not dispensed",
+            "email_id": "msg-004",
+            "amount_paise": 500000
+          }
+        ],
+        "recommended_actions": [
+          "Raise a complaint with the ATM-issuing bank and keep the ATM ID and transaction reference.",
+          "Ask for the ATM journal/trace and a written reversal timeline.",
+          "If unresolved, escalate to the bank's Principal Nodal Officer and then the RBI Ombudsman."
+        ],
+        "ai": {
+          "status": "disabled",
+          "model": null,
+          "summary": null,
+          "merchant": null,
+          "vertical": null,
+          "segment": null,
+          "labels": [],
+          "conflicts": [],
+          "needs_review": false
+        },
+        "tracking": {
+          "first_seen_at": "2026-11-12T15:45:43.264610Z",
+          "last_seen_at": "2026-11-12T15:45:43.264610Z",
+          "sweep_count": 1
+        },
+        "needs_review": false,
+        "safety_note": "Haq reports what the linked rule says. This is an evidence record, not legal advice."
+      },
+      {
+        "schema_version": "haq.flag.v1",
+        "record_id": "hf_0ebf4300b5c0c9b2",
+        "identity_keys": [
+          "claim:msme_invoice_overdue|ref:msme-2026-441"
+        ],
+        "case_id": "bde364cccad7930a",
+        "title": "Overdue MSME invoice",
+        "claim_type": "msme_invoice_overdue",
+        "category_label": "Overdue business invoice",
+        "segment": "business",
+        "vertical": "business",
+        "status": "resolved",
+        "status_label": "Payment received",
+        "amount": {
+          "value_paise": 14280000,
+          "currency": "INR",
+          "display": "₹142,800.00"
+        },
+        "transaction": {
+          "reference": "MSME-2026-441",
+          "channel": "MSME",
+          "merchant": "Techbuyer Corp",
+          "origin_date": "2026-10-15",
+          "origin_email_id": "msg-005"
+        },
+        "resolution": {
+          "kind": "payment",
+          "received": true,
+          "received_on": "2026-11-10",
+          "days_to_resolution": 26,
+          "evidence_email_ids": [
+            "msg-014"
+          ],
+          "label": "Payment received"
+        },
+        "legal": {
+          "rule_id": "R-007",
+          "rule_status": "Seeded",
+          "rule_verified": false,
+          "stamp": "UNVERIFIED RULE",
+          "statutory_days": null,
+          "deadline_date": null,
+          "indicative_deadline_date": null,
+          "days_overdue": null,
+          "compliance": "received_rule_unverified",
+          "compliance_label": "Payment received; the linked rule is not verified",
+          "compensation": {
+            "computed": false,
+            "amount_paise": null,
+            "indicative_paise": null,
+            "daily_rate_paise": null,
+            "note": "No verified daily-rate rule is linked, so no compensation is computed."
+          },
+          "citation": "MSMED Act 2006 (Sections 15-16)",
+          "note": "The linked rule R-007 is Seeded, so the turnaround time and any amount are shown only as an indicative reference, not a legal conclusion."
+        },
+        "labels": [
+          "msme_invoice_overdue",
+          "msme",
+          "merchant:techbuyer-corp",
+          "business",
+          "refund-received",
+          "rule-seeded",
+          "invoice_paid",
+          "overdue_invoice"
+        ],
+        "risk_flags": [
+          "rule_not_verified"
+        ],
+        "evidence": [
+          {
+            "email_id": "msg-005",
+            "role": "invoice",
+            "duplicate": false,
+            "duplicate_of": null,
+            "date": "2026-10-15",
+            "sender": "techbuyer-corp.in",
+            "subject": "Overdue Notice: Payment status for Invoice #MSME-2026-441",
+            "quote": "Dear Shivansh, regarding Invoice #MSME-2026-441 for software development services (amount: Rs 1,42,800.00, acceptance date: 03-Sep-2026), our audit is underway. We acknowledge dues are overdue.",
+            "amount_paise": 14280000,
+            "reference": "MSME-2026-441"
+          },
+          {
+            "email_id": "msg-014",
+            "role": "payment",
+            "duplicate": false,
+            "duplicate_of": null,
+            "date": "2026-11-10",
+            "sender": "techbuyer-corp.in",
+            "subject": "Payment received: Invoice #MSME-2026-441",
+            "quote": "Dear Shivansh, this is a remittance advice confirming that payment of Rs 1,42,800.00 against Invoice #MSME-2026-441 has been received by our accounts team and settled on 10-Nov-2026.",
+            "amount_paise": 14280000,
+            "reference": "MSME-2026-441"
+          }
+        ],
+        "timeline": [
+          {
+            "date": "2026-10-15",
+            "event": "Invoice marked overdue",
+            "email_id": "msg-005",
+            "amount_paise": 14280000
+          },
+          {
+            "date": "2026-11-10",
+            "event": "Invoice payment received",
+            "email_id": "msg-014",
+            "amount_paise": 14280000
+          }
+        ],
+        "recommended_actions": [
+          "Payment appears received; confirm the credited amount matches the invoice.",
+          "Send a written demand to the buyer's accounts team quoting the invoice number and due date.",
+          "Keep the invoice, delivery or acceptance proof, and the buyer's acknowledgement together.",
+          "If unpaid, ask about the MSME Facilitation Council route (Section 18) and record every reminder."
+        ],
+        "ai": {
+          "status": "disabled",
+          "model": null,
+          "summary": null,
+          "merchant": null,
+          "vertical": null,
+          "segment": null,
+          "labels": [],
+          "conflicts": [],
+          "needs_review": false
+        },
+        "tracking": {
+          "first_seen_at": "2026-11-12T15:45:43.264610Z",
+          "last_seen_at": "2026-11-12T15:45:43.264610Z",
+          "sweep_count": 1
+        },
+        "needs_review": false,
+        "safety_note": "Haq reports what the linked rule says. This is an evidence record, not legal advice."
+      },
+      {
+        "schema_version": "haq.flag.v1",
+        "record_id": "hf_68a285acbd107149",
+        "identity_keys": [
+          "claim:upi_failed_debited|ref:upiref-demo-002"
+        ],
+        "case_id": "255f83f37c474688",
+        "title": "UPI/IMPS/NEFT debited without credit or reversal",
+        "claim_type": "upi_failed_debited",
+        "category_label": "Failed payment, money debited",
+        "segment": "consumer",
+        "vertical": "gaming",
+        "status": "resolved",
+        "status_label": "Refund received",
+        "amount": {
+          "value_paise": 129900,
+          "currency": "INR",
+          "display": "₹1,299.00"
+        },
+        "transaction": {
+          "reference": "UPIREF-DEMO-002",
+          "channel": "UPI",
+          "merchant": "Steam",
+          "origin_date": "2026-11-05",
+          "origin_email_id": "msg-011"
+        },
+        "resolution": {
+          "kind": "refund",
+          "received": true,
+          "received_on": "2026-11-12",
+          "days_to_resolution": 7,
+          "evidence_email_ids": [
+            "msg-013"
+          ],
+          "label": "Refund received"
+        },
+        "legal": {
+          "rule_id": "R-001",
+          "rule_status": "Seeded",
+          "rule_verified": false,
+          "stamp": "UNVERIFIED RULE",
+          "statutory_days": 1,
+          "deadline_date": null,
+          "indicative_deadline_date": "2026-11-06",
+          "days_overdue": null,
+          "compliance": "received_rule_unverified",
+          "compliance_label": "Refund received; the linked rule is not verified",
+          "compensation": {
+            "computed": false,
+            "amount_paise": null,
+            "indicative_paise": 60000,
+            "daily_rate_paise": 10000,
+            "note": "Indicative only: the linked rule is not verified, so Haq does not treat this as a legal amount."
+          },
+          "citation": "RBI Harmonised TAT circular (DPSS.CO.PD No.629/02.01.014/2019-20)",
+          "note": "The linked rule R-001 is Seeded, so the turnaround time and any amount are shown only as an indicative reference, not a legal conclusion."
+        },
+        "labels": [
+          "upi_failed_debited",
+          "upi",
+          "merchant:steam",
+          "gaming",
+          "consumer",
+          "refund-received",
+          "rule-seeded",
+          "refund_credited"
+        ],
+        "risk_flags": [
+          "rule_not_verified"
+        ],
+        "evidence": [
+          {
+            "email_id": "msg-011",
+            "role": "debit",
+            "duplicate": false,
+            "duplicate_of": null,
+            "date": "2026-11-05",
+            "sender": "hdfcbank.net",
+            "subject": "Alert: UPI debit of Rs 1,299.00 for STEAM purchase",
+            "quote": "Dear Customer, Rs 1,299.00 has been debited from your account **XXXX on 05-Nov-2026 towards UPI txn to STEAM. UPI Reference Number: UPIREF-DEMO-002.",
+            "amount_paise": 129900,
+            "reference": "UPIREF-DEMO-002"
+          },
+          {
+            "email_id": "msg-012",
+            "role": "failure",
+            "duplicate": false,
+            "duplicate_of": null,
+            "date": "2026-11-05",
+            "sender": "steampowered.com",
+            "subject": "Purchase failed: Steam wallet top-up of Rs 1,299",
+            "quote": "Your in-app purchase of Rs 1,299 for a Steam wallet top-up failed at the payment provider. The debited amount will be reversed automatically.",
+            "amount_paise": 129900,
+            "reference": null
+          },
+          {
+            "email_id": "msg-013",
+            "role": "refund",
+            "duplicate": false,
+            "duplicate_of": null,
+            "date": "2026-11-12",
+            "sender": "hdfcbank.net",
+            "subject": "Alert: Reversal credit of Rs 1,299.00 received",
+            "quote": "Dear Customer, account **XXXX credited with Rs 1,299.00 on 12-Nov-2026 by UPI Reversal / STEAM / UPIREF-DEMO-002.",
+            "amount_paise": 129900,
+            "reference": null
+          }
+        ],
+        "timeline": [
+          {
+            "date": "2026-11-05",
+            "event": "Money debited",
+            "email_id": "msg-011",
+            "amount_paise": 129900
+          },
+          {
+            "date": "2026-11-05",
+            "event": "Payment failed",
+            "email_id": "msg-012",
+            "amount_paise": 129900
+          },
+          {
+            "date": "2026-11-12",
+            "event": "Refund credited",
+            "email_id": "msg-013",
+            "amount_paise": 129900
+          }
+        ],
+        "recommended_actions": [
+          "Refund appears received; compare the credit date with the rule's turnaround time.",
+          "If the credit was late, ask the bank or payment app to confirm any compensation in writing."
+        ],
+        "ai": {
+          "status": "disabled",
+          "model": null,
+          "summary": null,
+          "merchant": null,
+          "vertical": null,
+          "segment": null,
+          "labels": [],
+          "conflicts": [],
+          "needs_review": false
+        },
+        "tracking": {
+          "first_seen_at": "2026-11-12T15:45:43.264610Z",
+          "last_seen_at": "2026-11-12T15:45:43.264610Z",
+          "sweep_count": 1
+        },
+        "needs_review": false,
+        "safety_note": "Haq reports what the linked rule says. This is an evidence record, not legal advice."
+      },
+      {
+        "schema_version": "haq.flag.v1",
+        "record_id": "hf_9e96891873d85056",
+        "identity_keys": [
+          "claim:upi_failed_debited|ref:upiref-demo-001"
+        ],
+        "case_id": "3adb1dc111ee075a",
+        "title": "UPI/IMPS/NEFT debited without credit or reversal",
+        "claim_type": "upi_failed_debited",
+        "category_label": "Failed payment, money debited",
+        "segment": "consumer",
+        "vertical": "food_delivery",
+        "status": "resolved",
+        "status_label": "Refund received",
+        "amount": {
+          "value_paise": 200000,
+          "currency": "INR",
+          "display": "₹2,000.00"
+        },
+        "transaction": {
+          "reference": "UPIREF-DEMO-001",
+          "channel": "UPI",
+          "merchant": "Swiggy",
+          "origin_date": "2026-11-03",
+          "origin_email_id": "msg-001"
+        },
+        "resolution": {
+          "kind": "refund",
+          "received": true,
+          "received_on": "2026-11-09",
+          "days_to_resolution": 6,
+          "evidence_email_ids": [
+            "msg-003"
+          ],
+          "label": "Refund received"
+        },
+        "legal": {
+          "rule_id": "R-001",
+          "rule_status": "Seeded",
+          "rule_verified": false,
+          "stamp": "UNVERIFIED RULE",
+          "statutory_days": 1,
+          "deadline_date": null,
+          "indicative_deadline_date": "2026-11-04",
+          "days_overdue": null,
+          "compliance": "received_rule_unverified",
+          "compliance_label": "Refund received; the linked rule is not verified",
+          "compensation": {
+            "computed": false,
+            "amount_paise": null,
+            "indicative_paise": 50000,
+            "daily_rate_paise": 10000,
+            "note": "Indicative only: the linked rule is not verified, so Haq does not treat this as a legal amount."
+          },
+          "citation": "RBI Harmonised TAT circular (DPSS.CO.PD No.629/02.01.014/2019-20)",
+          "note": "The linked rule R-001 is Seeded, so the turnaround time and any amount are shown only as an indicative reference, not a legal conclusion."
+        },
+        "labels": [
+          "upi_failed_debited",
+          "upi",
+          "merchant:swiggy",
+          "food_delivery",
+          "consumer",
+          "refund-received",
+          "rule-seeded",
+          "refund_credited"
+        ],
+        "risk_flags": [
+          "rule_not_verified",
+          "duplicate_emails"
+        ],
+        "evidence": [
+          {
+            "email_id": "msg-001",
+            "role": "debit",
+            "duplicate": false,
+            "duplicate_of": null,
+            "date": "2026-11-03",
+            "sender": "hdfcbank.net",
+            "subject": "Alert: Your HDFC Bank account was debited for UPI txn Rs 2,000.00",
+            "quote": "Dear Customer, Rs 2,000.00 has been debited from your account **XXXX on 03-Nov-2026 towards UPI txn to SWIGGY. UPI Reference Number: UPIREF-DEMO-001. If this was not authorized by you, contact your bank.",
+            "amount_paise": 200000,
+            "reference": "UPIREF-DEMO-001"
+          },
+          {
+            "email_id": "msg-010",
+            "role": "debit",
+            "duplicate": true,
+            "duplicate_of": "msg-001",
+            "date": "2026-11-03",
+            "sender": "hdfcbank.net",
+            "subject": "Alert: Your HDFC Bank account was debited for UPI txn Rs 2,000.00",
+            "quote": "Dear Customer, Rs 2,000.00 has been debited from your account **XXXX on 03-Nov-2026 towards UPI txn to SWIGGY. UPI Reference Number: UPIREF-DEMO-001.",
+            "amount_paise": 200000,
+            "reference": "UPIREF-DEMO-001"
+          },
+          {
+            "email_id": "msg-002",
+            "role": "failure",
+            "duplicate": false,
+            "duplicate_of": null,
+            "date": "2026-11-03",
+            "sender": "phonepe.com",
+            "subject": "Payment Failed: Your payment of Rs 2,000 at Swiggy was not completed",
+            "quote": "Hi Shivansh, your transaction of Rs 2,000 at Swiggy failed. Since money was debited from your bank account, it will be refunded back as per the RBI turnaround time framework.",
+            "amount_paise": 200000,
+            "reference": null
+          },
+          {
+            "email_id": "msg-003",
+            "role": "refund",
+            "duplicate": false,
+            "duplicate_of": null,
+            "date": "2026-11-09",
+            "sender": "hdfcbank.net",
+            "subject": "Alert: Reversal credit of Rs 2,000.00 received in your account",
+            "quote": "Dear Customer, account **XXXX credited with Rs 2,000.00 on 09-Nov-2026 11:05:12 by UPI Reversal / SWIGGY / UPIREF-DEMO-001. Available balance: Rs 20,420.00.",
+            "amount_paise": 200000,
+            "reference": null
+          }
+        ],
+        "timeline": [
+          {
+            "date": "2026-11-03",
+            "event": "Money debited",
+            "email_id": "msg-001",
+            "amount_paise": 200000
+          },
+          {
+            "date": "2026-11-03",
+            "event": "Money debited",
+            "email_id": "msg-010",
+            "amount_paise": 200000
+          },
+          {
+            "date": "2026-11-03",
+            "event": "Payment failed",
+            "email_id": "msg-002",
+            "amount_paise": 200000
+          },
+          {
+            "date": "2026-11-09",
+            "event": "Refund credited",
+            "email_id": "msg-003",
+            "amount_paise": 200000
+          }
+        ],
+        "recommended_actions": [
+          "Refund appears received; compare the credit date with the rule's turnaround time.",
+          "If the credit was late, ask the bank or payment app to confirm any compensation in writing."
+        ],
+        "ai": {
+          "status": "disabled",
+          "model": null,
+          "summary": null,
+          "merchant": null,
+          "vertical": null,
+          "segment": null,
+          "labels": [],
+          "conflicts": [],
+          "needs_review": false
+        },
+        "tracking": {
+          "first_seen_at": "2026-11-12T15:45:43.264610Z",
+          "last_seen_at": "2026-11-12T15:45:43.264610Z",
+          "sweep_count": 1
+        },
+        "needs_review": true,
+        "safety_note": "Haq reports what the linked rule says. This is an evidence record, not legal advice."
+      }
+    ],
+    "summary": {
+      "total_records": 4,
+      "total_amount_paise": 15109900,
+      "refunds_received": 3,
+      "refunds_pending": 1,
+      "refunds_late": 0,
+      "action_needed": 0,
+      "business_records": 1,
+      "gaming_records": 1
+    },
+    "ai_status": "disabled"
+  },
+  "llm_status": "disabled",
+  "ledger_ai_status": "disabled",
+  "ai_assisted_count": 0
 }

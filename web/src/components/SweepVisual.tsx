@@ -15,7 +15,7 @@ const INBOX = [
 const RESULTS = [
   { ref: "ATM8829103", label: "ATM cash not dispensed", bank: "SBI", amount: 5000, tag: "Ready" },
   { ref: "MSME-2026-441", label: "Overdue MSME invoice", bank: "Acme Traders", amount: 142800, tag: "Ready" },
-  { ref: "431209845123", label: "Failed UPI, money debited", bank: "HDFC · PhonePe", amount: 2000, tag: "Review" },
+  { ref: "UPIREF-DEMO-001", label: "Failed UPI, money debited", bank: "HDFC · PhonePe", amount: 2000, tag: "Review" },
 ];
 const TOTAL = RESULTS.reduce((s, r) => s + r.amount, 0);
 const SCAN_MS = 5200; // full pass of the beam

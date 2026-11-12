@@ -3,8 +3,15 @@ import { useEffect, useRef, useState } from "react";
 import { ArrowRight, Inbox, Mail, RotateCcw } from "lucide-react";
 import { runDemoSweep } from "@/lib/haq.functions";
 import { sweepStore, useSweepState } from "@/lib/sweep-store";
-import { API_BASE, claimableCases, claimableTotal, inr, type SweepResult } from "@/lib/haq-types";
-import { CaseCard } from "@/components/CaseCard";
+import {
+  API_BASE,
+  inr,
+  ledgerRecords,
+  ledgerSummary,
+  recordAmount,
+  type SweepResult,
+} from "@/lib/haq-types";
+import { RecordCard, RecordSummaryStrip } from "@/components/RecordCard";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/dashboard/sweep")({
@@ -32,8 +39,8 @@ const STAGES = [
   "Reading inbox headers",
   "Filtering out promotions and noise",
   "Spotting debits, failures and invoices",
-  "Grouping related emails into cases",
-  "Matching each case to a rule",
+  "Grouping related emails into records",
+  "Matching each record to a rule",
 ];
 const SESSION_KEY = "haq-gmail-session";
 
@@ -68,7 +75,7 @@ function SweepPage() {
       const [data] = await Promise.all([work, new Promise((r) => setTimeout(r, 4200))]);
       sweepStore.setResult(data);
       sweepStore.log(
-        `Sweep finished: ${data.emails_scanned} emails read, ${claimableCases(data.cases).length} possible claims`,
+        `Sweep finished: ${data.emails_scanned} emails read, ${ledgerRecords(data).length} tracked records`,
       );
       setPct(100);
     } catch (e) {
@@ -189,17 +196,22 @@ function SweepPage() {
   }
 
   if (result) {
-    const packs = result.claim_packs ?? [];
+    const records = ledgerRecords(result);
+    const summary = ledgerSummary(result);
+    const outstanding = records
+      .filter((record) => !record.resolution.received)
+      .reduce((sum, record) => sum + recordAmount(record), 0);
     return (
-      <div className="mx-auto max-w-3xl">
+      <div className="mx-auto max-w-4xl">
         {notice && <Notice text={notice} />}
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
-            <p className="text-sm text-muted-foreground">Possibly owed to you</p>
-            <p className="font-display text-6xl">{inr(claimableTotal(result.cases))}</p>
+            <p className="text-sm text-muted-foreground">Tracked across this session</p>
+            <p className="font-display text-6xl">{inr(summary.total_amount_paise)}</p>
             <p className="mt-1 text-sm text-muted-foreground">
-              {claimableCases(result.cases).length} possible claims from {result.emails_scanned}{" "}
-              emails
+              {records.length} tracked record{records.length === 1 ? "" : "s"} · {inr(outstanding)}{" "}
+              still waiting · {summary.refunds_received} resolved
+              {summary.refunds_late > 0 && ` · ${summary.refunds_late} late`}
             </p>
           </div>
           <button
@@ -210,7 +222,12 @@ function SweepPage() {
             New sweep
           </button>
         </div>
-        <div className="mt-8 grid grid-cols-2 gap-3 md:grid-cols-4">
+
+        <div className="mt-8">
+          <RecordSummaryStrip summary={summary} />
+        </div>
+
+        <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-4">
           {[
             ["Emails read", result.emails_scanned],
             ["Noise filtered", result.noise_filtered],
@@ -223,15 +240,21 @@ function SweepPage() {
             </div>
           ))}
         </div>
-        <h2 className="mt-10 text-lg font-semibold">Cases</h2>
+
+        <h2 className="mt-10 text-lg font-semibold">Flagged records</h2>
+        <p className="mt-1 text-sm text-muted-foreground">
+          One record per transaction or invoice. Related emails are grouped, duplicates are marked,
+          and each record tracks whether the money came back.
+        </p>
         <div className="mt-4 space-y-3">
-          {(result.cases ?? []).map((c) => (
-            <CaseCard key={c.case_id} c={c} pack={packs.find((p) => p.case_id === c.case_id)} />
+          {records.map((record) => (
+            <RecordCard key={record.record_id} record={record} />
           ))}
-          {!result.cases?.length && (
-            <p className="text-sm text-muted-foreground">No claimable cases found in this inbox.</p>
+          {!records.length && (
+            <p className="text-sm text-muted-foreground">No tracked records found in this inbox.</p>
           )}
         </div>
+
         <Link
           to="/dashboard/claims"
           className="mt-8 inline-flex items-center gap-2 text-sm font-semibold text-primary"
