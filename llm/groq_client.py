@@ -2,8 +2,9 @@ from __future__ import annotations
 
 import json
 import os
+import threading
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any, Callable
 
 import httpx
@@ -27,18 +28,22 @@ class SpendCapExceeded(RuntimeError):
 class SpendBudget:
     cap_usd: float = 0.0
     spent_usd: float = 0.0
+    _lock: threading.Lock = field(default_factory=threading.Lock, init=False, repr=False)
 
-    def reserve_worst_case(self, input_tokens: int, output_tokens: int, input_rate: float, output_rate: float) -> None:
+    def reserve_worst_case(self, input_tokens: int, output_tokens: int, input_rate: float, output_rate: float) -> float:
         estimate = (input_tokens / 1_000_000 * input_rate) + (output_tokens / 1_000_000 * output_rate)
-        if self.spent_usd + estimate > self.cap_usd:
-            raise SpendCapExceeded("configured Groq spend cap would be exceeded")
+        with self._lock:
+            if self.spent_usd + estimate > self.cap_usd:
+                raise SpendCapExceeded("configured Groq spend cap would be exceeded")
+            self.spent_usd += estimate
+        return estimate
 
-    def record(self, usage: dict[str, Any], input_rate: float, output_rate: float) -> None:
+    def record(self, usage: dict[str, Any], input_rate: float, output_rate: float, reserved_usd: float = 0.0) -> None:
         prompt_tokens = int(usage.get("prompt_tokens", 0) or 0)
         completion_tokens = int(usage.get("completion_tokens", 0) or 0)
-        self.spent_usd += (prompt_tokens / 1_000_000 * input_rate) + (
-            completion_tokens / 1_000_000 * output_rate
-        )
+        actual = (prompt_tokens / 1_000_000 * input_rate) + (completion_tokens / 1_000_000 * output_rate)
+        with self._lock:
+            self.spent_usd = max(0.0, self.spent_usd - reserved_usd) + actual
 
 
 @dataclass(frozen=True)
@@ -210,17 +215,9 @@ class GroqClient(LLMClient):
         if not self.api_key:
             return LLMResponse(LLMStatus.UNAVAILABLE, error="provider key is not configured")
         model = self.models[task]
-        pricing = PRICING.get(model, GroqModelPricing(0.0, 0.0))
-        try:
-            self.budget.reserve_worst_case(
-                input_tokens=max(1, len(payload.body_text + payload.subject + payload.snippet) // 4),
-                output_tokens=self.max_completion_tokens,
-                input_rate=pricing.input_per_million,
-                output_rate=pricing.output_per_million,
-            )
-        except SpendCapExceeded:
-            return LLMResponse(LLMStatus.UNAVAILABLE, error="spend cap exceeded before provider request")
-
+        pricing = PRICING.get(model)
+        if pricing is None:
+            return LLMResponse(LLMStatus.UNAVAILABLE, error="unsupported_model")
         system = build_prompt("triage_v1" if task == "triage" else "extract_v1", "")
         request = {
             "model": model,
@@ -238,7 +235,23 @@ class GroqClient(LLMClient):
             },
         }
         headers = {"Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json"}
+        estimated_input_chars = (
+            len(system)
+            + len(payload.model_dump_json())
+            + len(json.dumps(schema, separators=(",", ":")))
+            + 512  # conservative framing and chat-template overhead
+        )
+        estimated_input_tokens = max(1, (estimated_input_chars + 2) // 3)
         for attempt in range(self.max_retries + 1):
+            try:
+                reservation = self.budget.reserve_worst_case(
+                    input_tokens=estimated_input_tokens,
+                    output_tokens=self.max_completion_tokens,
+                    input_rate=pricing.input_per_million,
+                    output_rate=pricing.output_per_million,
+                )
+            except SpendCapExceeded:
+                return LLMResponse(LLMStatus.UNAVAILABLE, error="spend cap exceeded before provider request")
             try:
                 with httpx.Client(timeout=self.timeout_seconds, transport=self._transport) as client:
                     result = client.post(self.base_url, headers=headers, json=request)
@@ -251,7 +264,7 @@ class GroqClient(LLMClient):
                     return LLMResponse(LLMStatus.UNAVAILABLE, error=f"provider_http_{result.status_code}")
                 data = result.json()
                 usage = data.get("usage", {})
-                self.budget.record(usage, pricing.input_per_million, pricing.output_per_million)
+                self.budget.record(usage, pricing.input_per_million, pricing.output_per_million, reservation)
                 content = data["choices"][0]["message"]["content"]
                 parsed = json.loads(content)
                 return LLMResponse(LLMStatus.OK, parsed)

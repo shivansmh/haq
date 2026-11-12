@@ -11,7 +11,7 @@ from urllib.parse import urlparse
 class LLMSettings:
     """Validated provider configuration; disabled and bounded by default."""
 
-    provider: str = "openai_compatible"
+    provider: str = "groq"
     api_base_url: str | None = None
     api_key: str | None = None
     model: str = "unset"
@@ -19,6 +19,10 @@ class LLMSettings:
     max_messages_per_sweep: int = 100
     max_message_chars: int = 8000
     enabled: bool = False
+    spend_cap_usd: float = 0.0
+    triage_model: str = "openai/gpt-oss-20b"
+    extract_model: str = "openai/gpt-oss-20b"
+    recheck_model: str = "openai/gpt-oss-20b"
 
 
 def _read_bool(raw: str, name: str) -> bool:
@@ -50,17 +54,27 @@ def _read_positive_float(raw: str, name: str) -> float:
     return value
 
 
+def _read_nonnegative_float(raw: str, name: str) -> float:
+    try:
+        value = float(raw)
+    except ValueError as exc:
+        raise ValueError(f"{name} must be a number") from exc
+    if not math.isfinite(value) or value < 0:
+        raise ValueError(f"{name} must be zero or greater")
+    return value
+
+
 def load_settings(environ: Mapping[str, str] | None = None) -> LLMSettings:
     """Read environment settings, using safe defaults and failing on invalid values."""
     source = os.environ if environ is None else environ
     enabled = _read_bool(source.get("LLM_ENABLED", "false"), "LLM_ENABLED")
-    provider = source.get("LLM_PROVIDER", "openai_compatible").strip()
+    provider = source.get("LLM_PROVIDER", "groq").strip()
     if not provider:
         raise ValueError("LLM_PROVIDER must not be empty")
     base_url = source.get("LLM_API_BASE_URL", "").strip() or None
     if base_url is not None and urlparse(base_url).scheme not in {"http", "https"}:
         raise ValueError("LLM_API_BASE_URL must use http or https")
-    api_key = source.get("LLM_API_KEY", "").strip() or None
+    api_key = (source.get("GROQ_API_KEY", "").strip() or source.get("LLM_API_KEY", "").strip()) or None
     model = source.get("LLM_MODEL", "unset").strip() or "unset"
     settings = LLMSettings(
         provider=provider,
@@ -77,7 +91,11 @@ def load_settings(environ: Mapping[str, str] | None = None) -> LLMSettings:
             source.get("LLM_MAX_MESSAGE_CHARS", "8000"), "LLM_MAX_MESSAGE_CHARS"
         ),
         enabled=enabled,
+        spend_cap_usd=_read_nonnegative_float(source.get("GROQ_SPEND_CAP_USD", "0"), "GROQ_SPEND_CAP_USD"),
+        triage_model=source.get("LLM_MODEL_TRIAGE", "openai/gpt-oss-20b").strip(),
+        extract_model=source.get("LLM_MODEL_EXTRACT", "openai/gpt-oss-20b").strip(),
+        recheck_model=source.get("LLM_MODEL_RECHECK", "openai/gpt-oss-20b").strip(),
     )
-    if settings.enabled and (settings.api_base_url is None or settings.api_key is None):
-        raise ValueError("LLM_API_BASE_URL and LLM_API_KEY are required when LLM_ENABLED=true")
+    if settings.enabled and settings.api_key is None:
+        raise ValueError("GROQ_API_KEY is required when LLM_ENABLED=true")
     return settings

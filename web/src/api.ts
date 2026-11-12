@@ -9,6 +9,17 @@ export type SweepEmail = {
   extractedAmount?: number;
   extractedChannel?: string;
   extractedRef?: string;
+  llm_assistance?: {
+    status: 'disabled' | 'unavailable' | 'timeout' | 'invalid_output' | 'ok';
+    relevance?: string;
+    signal_type?: string;
+    evidence_summary?: string;
+    needs_review?: boolean;
+    review_reasons?: string[];
+    suggestions?: Record<string, { value: string | number; source_quote: string; trust_tier: 'T-B' }>;
+    conflicts?: Array<{ field: string; deterministic_value: string | number; llm_value: string | number; status: 'conflict'; action: 'ask_user' }>;
+    trust_tier?: 'T-B';
+  };
 };
 
 export type Finding = {
@@ -32,6 +43,8 @@ export type SweepResult = {
   violations_detected: number;
   emails: SweepEmail[];
   candidates: Finding[];
+  llm_status?: 'disabled' | 'unavailable' | 'timeout' | 'invalid_output' | 'ok';
+  ai_assisted_count?: number;
 };
 
 export type PaymentResult = {

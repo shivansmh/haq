@@ -25,6 +25,11 @@ from email.utils import parsedate_to_datetime
 from typing import Any
 from urllib.error import HTTPError
 
+from llm.client import LLMClient
+from llm.config import LLMSettings
+from llm.gmail_assistance import enrich_financial_emails
+from llm.redact import OAuthTokenDetected, redact_sensitive
+
 GOOGLE_AUTH_ENDPOINT = "https://accounts.google.com/o/oauth2/v2/auth"
 GOOGLE_TOKEN_ENDPOINT = "https://oauth2.googleapis.com/token"
 GOOGLE_REVOKE_ENDPOINT = "https://oauth2.googleapis.com/revoke"
@@ -358,7 +363,19 @@ def get_demo_email_corpus() -> list[dict[str, Any]]:
     ]
 
 
-def filter_and_extract_transactions(raw_messages: list[dict[str, Any]]) -> dict[str, Any]:
+def _safe_display_text(value: Any) -> str:
+    try:
+        return redact_sensitive(str(value or "")).redacted_text
+    except OAuthTokenDetected:
+        return "[CREDENTIAL REDACTED]"
+
+
+def filter_and_extract_transactions(
+    raw_messages: list[dict[str, Any]],
+    *,
+    llm_client: LLMClient | None = None,
+    llm_settings: LLMSettings | None = None,
+) -> dict[str, Any]:
     """Clean a bounded inbox and emit only evidence-derived signals and candidates."""
     audited_emails: list[dict[str, Any]] = []
     candidates: list[dict[str, Any]] = []
@@ -423,9 +440,9 @@ def filter_and_extract_transactions(raw_messages: list[dict[str, Any]]) -> dict[
 
     def source(item: dict[str, Any]) -> dict[str, str]:
         return {
-            "sender": item.get("sender", "Unknown Sender"),
-            "subject": item.get("subject", "No Subject"),
-            "snippet": item.get("snippet", ""),
+            "sender": _safe_display_text(item.get("sender", "Unknown Sender")),
+            "subject": _safe_display_text(item.get("subject", "No Subject")),
+            "snippet": _safe_display_text(item.get("snippet", "")),
         }
 
     # A debit becomes a candidate only when a matching later reversal is found.
@@ -474,9 +491,20 @@ def filter_and_extract_transactions(raw_messages: list[dict[str, Any]]) -> dict[
             )
 
     safe_emails = [
-        {key: value for key, value in email.items() if key not in {"body", "is_real"}}
+        {
+            **{key: value for key, value in email.items() if key not in {"body", "is_real"}},
+            "sender": _safe_display_text(email.get("sender", "Unknown Sender")),
+            "subject": _safe_display_text(email.get("subject", "No Subject")),
+            "snippet": _safe_display_text(email.get("snippet", "")),
+        }
         for email in audited_emails
     ]
+    safe_emails, llm_status = enrich_financial_emails(
+        raw_messages,
+        safe_emails,
+        client=llm_client,
+        settings=llm_settings or LLMSettings(),
+    )
     return {
         "status": "success",
         "sweep_timestamp": datetime.now().isoformat(),
@@ -486,11 +514,20 @@ def filter_and_extract_transactions(raw_messages: list[dict[str, Any]]) -> dict[
         "violations_detected": len(candidates),
         "emails": safe_emails,
         "candidates": candidates,
+        "llm_status": llm_status,
+        "ai_assisted_count": sum(
+            email.get("llm_assistance", {}).get("status") == "ok" for email in safe_emails
+        ),
     }
 
 
 def search_gmail(
-    access_token: str | None = None, query: str = "", max_results: int = 50, demo: bool = False
+    access_token: str | None = None,
+    query: str = "",
+    max_results: int = 50,
+    demo: bool = False,
+    llm_client: LLMClient | None = None,
+    llm_settings: LLMSettings | None = None,
 ) -> dict[str, Any]:
     """Perform a live Gmail sweep, or use the synthetic corpus only when demo is explicit."""
     raw_messages: list[dict[str, Any]] = []
@@ -502,4 +539,4 @@ def search_gmail(
     else:
         raise GmailAccessError("A connected Gmail session is required")
 
-    return filter_and_extract_transactions(raw_messages)
+    return filter_and_extract_transactions(raw_messages, llm_client=llm_client, llm_settings=llm_settings)

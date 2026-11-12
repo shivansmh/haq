@@ -27,6 +27,24 @@ The public app also needs a same-domain privacy-policy URL that explains that Gm
 5. Set `FRONTEND_URL` to `https://shivansmh.github.io/haq` (the full Pages URL).
 6. Set `COOKIE_SECURE=true`.
 
+### Optional Groq email assistance
+
+The live Gmail scan can make one synchronous Groq extraction request per deterministically prefiltered financial message. It sends only the A2-redacted, bounded payload (default combined text cap: 8,000 characters); noise is skipped. A3 verifies source quotes and leaves model fields at trust tier T-B. Model suggestions and conflicts are shown for review only and never modify deterministic candidates or calculation inputs. Prompts, responses, raw bodies, and redaction token maps are not logged or persisted.
+
+Add these **backend environment variables** in Render (never in GitHub Pages or frontend `VITE_*` settings):
+
+```text
+GROQ_API_KEY=<server-side secret>
+LLM_ENABLED=true
+GROQ_SPEND_CAP_USD=<positive finite cap in USD>
+LLM_MAX_MESSAGES_PER_SWEEP=10
+LLM_MAX_MESSAGE_CHARS=8000
+LLM_TIMEOUT_SECONDS=20
+LLM_MODEL_EXTRACT=openai/gpt-oss-20b
+```
+
+`GROQ_API_KEY` alone does not enable calls. `LLM_ENABLED` defaults to `false`, and the spend ceiling defaults to `$0`, which blocks provider requests before network I/O. Pick a cap you explicitly accept; the current Groq client's budget is shared by the API process and resets when that process restarts. The model allowlist is limited to models with configured pricing so unknown model names fail closed. Keep the per-sweep message limit low for a hackathon deployment. The sweep response reports whether AI actually ran or the deterministic-only fallback was used.
+
 The OAuth session store is intentionally in memory for the hackathon demo. For a multi-instance production service, replace it with encrypted server-side session storage and rotate/revoke refresh tokens on disconnect.
 
 ## GitHub Pages variable

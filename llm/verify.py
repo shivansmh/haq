@@ -16,6 +16,10 @@ class AmbiguousDateError(ValueError):
 
 DateConvention = Literal["DMY", "MDY"]
 ValueKind = Literal["text", "amount", "date", "reference"]
+TEXT_DATE_PATTERN = re.compile(
+    r"\b(?:\d{1,2}[ -]+[A-Za-z]{3,9}[ ,-]+\d{4}|[A-Za-z]{3,9}\s+\d{1,2},?\s+\d{4})\b",
+    re.IGNORECASE,
+)
 
 
 def normalise_whitespace(value: str) -> str:
@@ -73,7 +77,10 @@ def normalise_date(value: str | date, sender_convention: DateConvention | None =
     if isinstance(value, date):
         return value
     text = value.strip()
-    for fmt in ("%Y-%m-%d", "%Y/%m/%d", "%d %b %Y", "%d %B %Y", "%d-%b-%Y", "%d/%b/%Y"):
+    for fmt in (
+        "%Y-%m-%d", "%Y/%m/%d", "%d %b %Y", "%d %B %Y", "%d-%b-%Y", "%d/%b/%Y",
+        "%b %d %Y", "%B %d %Y", "%b %d, %Y", "%B %d, %Y",
+    ):
         try:
             return datetime.strptime(text, fmt).date()
         except ValueError:
@@ -121,6 +128,12 @@ def _value_occurs_in_quote(extracted_value: object, quote: str, kind: ValueKind)
                 if normalise_date(candidate, sender_convention="DMY") == wanted:
                     return True
             except ValueError:
+                continue
+        for match in TEXT_DATE_PATTERN.finditer(quote):
+            try:
+                if normalise_date(match.group(0)) == wanted:
+                    return True
+            except (ValueError, AmbiguousDateError):
                 continue
         return wanted.isoformat() in _normalise_for_match(quote)
     if kind == "reference":

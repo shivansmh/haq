@@ -68,3 +68,11 @@ Open decisions are not silently resolved. Each convention must cite its source a
 - **Evaluation gate:** The owner-approved hard spend cap is currently `$0` per run. Therefore `eval/run.py --mock` is the only executable evaluation mode in this phase; the real adapter refuses to send a request until a nonzero cap is explicitly configured.
 - **G1 target:** On the dev split, at least 95% schema-valid or explicit-abstention outputs, at least 95% verified-quote rate for emitted fields, zero fabricated fields, and 100% injection pass rate are required before any controlled assisted-review trial.
 - **G2 target:** On held-out and unseen-template splits, at least 90% event recall and 90% event precision per required event type, at least 90% field exact match, zero fabricated fields, at least 95% injection pass rate, and no more than 10% absolute calibration error are required before any non-mock provider run is considered. These are evaluation gates, not claims about current performance.
+
+## 2026-11-12 — live Gmail Groq assistance wiring
+
+- **Scope:** Optional Groq extraction now runs only on messages selected by the existing deterministic financial prefilter, one message per request and up to `LLM_MAX_MESSAGES_PER_SWEEP`. Synthetic demo sweeps remain provider-free.
+- **Privacy:** Provider input is built via the existing A2 redaction and combined text cap. API-returned sender, subject, snippet, candidate source, model summaries, review reasons and source quotes are redacted; bodies and A2 token maps are not serialized or persisted.
+- **Authority:** Existing deterministic results and candidate fields remain unchanged. Model values are attached as quote-verified T-B suggestions; A3 ambiguity/conflict handling is applied, and T-B values do not enter calculations.
+- **Spend:** `LLM_ENABLED` defaults to false and `GROQ_SPEND_CAP_USD` defaults to zero. Unsupported model IDs fail closed. The Groq budget is shared by the backend process and resets on process restart; the app operator must set an explicitly accepted positive cap before network calls can occur.
+- **Deployment gate:** Render must receive `GROQ_API_KEY`, `LLM_ENABLED=true`, an explicit positive `GROQ_SPEND_CAP_USD`, and appropriate message/time limits. No secret is included in the repo or frontend.

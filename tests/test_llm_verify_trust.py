@@ -63,6 +63,21 @@ def test_ambiguous_numeric_date_is_rejected_without_sender_convention() -> None:
     assert normalise_date("03/04/2026", sender_convention="MDY") == date(2026, 3, 4)
 
 
+def test_textual_bank_alert_date_is_quote_verifiable() -> None:
+    assert verify_quote(
+        "UPI payment debited on 03-Nov-2026.",
+        "debited on 03-Nov-2026",
+        date(2026, 11, 3),
+        kind="date",
+    )
+    assert verify_quote(
+        "Payment received on Nov 3, 2026.",
+        "received on Nov 3, 2026",
+        date(2026, 11, 3),
+        kind="date",
+    )
+
+
 def test_conflicts_are_reported_and_never_resolved_silently() -> None:
     conflicts = report_conflicts(
         {"amount_paise": 200000, "event_date": date(2026, 4, 3)},

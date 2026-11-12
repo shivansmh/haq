@@ -4,6 +4,7 @@ import os
 import secrets
 import time
 from datetime import date, timedelta
+from threading import Lock
 from typing import Any
 from uuid import uuid4
 
@@ -16,6 +17,8 @@ from engine.classifier import classify_prompt
 from engine.delay import compute_range, delay_days
 from engine.registry_loader import load_registry
 from ingest.paste_parser import parse_alert_text
+from llm.config import LLMSettings, load_settings
+from llm.groq_client import GroqClient
 
 from .fixtures import health_payload
 from .gmail_service import (
@@ -45,6 +48,8 @@ SESSION_COOKIE = "haq_session"
 SESSION_TTL_SECONDS = 3600
 OAUTH_STATES: dict[str, dict[str, float | str]] = {}
 GMAIL_SESSIONS: dict[str, dict[str, Any]] = {}
+_GROQ_CLIENT: GroqClient | None = None
+_GROQ_CLIENT_LOCK = Lock()
 
 app = FastAPI(
     title="Haq API",
@@ -122,6 +127,25 @@ def _gmail_token(request: Request) -> str:
         session.update(refreshed)
         session["expires_at"] = time.time() + int(refreshed.get("expires_in", 3600))
     return str(session["access_token"])
+
+
+def _gmail_llm_runtime() -> tuple[GroqClient | None, LLMSettings]:
+    """Return optional Groq assistance; the spend ceiling applies per process."""
+    global _GROQ_CLIENT
+    settings = load_settings()
+    if not settings.enabled:
+        return None, settings
+    with _GROQ_CLIENT_LOCK:
+        if _GROQ_CLIENT is None:
+            _GROQ_CLIENT = GroqClient(
+                api_key=settings.api_key,
+                triage_model=settings.triage_model,
+                extract_model=settings.extract_model,
+                recheck_model=settings.recheck_model,
+                timeout_seconds=settings.timeout_seconds,
+                spend_cap_usd=settings.spend_cap_usd,
+            )
+    return _GROQ_CLIENT, settings
 
 
 @app.get("/healthz")
@@ -207,7 +231,14 @@ def gmail_status(request: Request) -> dict[str, bool]:
 def gmail_scan_endpoint(request: Request, payload: GmailScanRequest) -> dict[str, Any]:
     """Search Gmail with the server-side session and apply the in-memory sweep."""
     try:
-        return search_gmail(_gmail_token(request), payload.query or "", payload.max_results)
+        llm_client, llm_settings = _gmail_llm_runtime()
+        return search_gmail(
+            _gmail_token(request),
+            payload.query or "",
+            payload.max_results,
+            llm_client=llm_client,
+            llm_settings=llm_settings,
+        )
     except GmailAccessError as exc:
         raise HTTPException(status_code=502, detail=str(exc)) from exc
 
