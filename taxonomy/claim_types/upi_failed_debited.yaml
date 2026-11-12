@@ -1,0 +1,18 @@
+id: upi_failed_debited
+name: UPI/IMPS/NEFT debited without credit or reversal
+who: consumer
+detect:
+  sender_tiers: [bank, upi_app]
+  positive_phrases: [upi, imps, neft, debited, deducted, failed, reversal]
+  negative_phrases: [otp, promotional offer, ci failure]
+  required_fields: [amount_paise]
+lifecycle:
+  trigger_event: debit_without_credit
+  expected_resolution: reversal or beneficiary credit
+  deadline_source: linked registry rule
+rule_id: R-001
+rule_status: Seeded
+evidence: [debit alert, failed-payment email, transaction reference, bank statement, reversal status]
+escalation: [payment app, remitter bank, bank nodal officer, ombudsman]
+template: upi_failed_debited.md
+eval_set: upi_failed_debited

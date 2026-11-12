@@ -1,0 +1,18 @@
+id: msme_invoice_overdue
+name: Overdue MSME invoice
+who: supplier
+detect:
+  sender_tiers: [merchant, unknown]
+  positive_phrases: [invoice, due, overdue, payment pending, acknowledged]
+  negative_phrases: [paid, payment received, promotional offer]
+  required_fields: [amount_paise]
+lifecycle:
+  trigger_event: invoice_due_and_unpaid
+  expected_resolution: buyer payment
+  deadline_source: linked registry rule
+rule_id: R-007
+rule_status: Seeded
+evidence: [invoice, delivery or acceptance proof, buyer acknowledgement, ledger, bank statement]
+escalation: [buyer accounts team, buyer grievance officer, facilitation council]
+template: msme_invoice_overdue.md
+eval_set: msme_invoice_overdue

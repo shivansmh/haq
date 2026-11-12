@@ -1,0 +1,18 @@
+id: card_debited_order_unconfirmed
+name: Card/net-banking/wallet debited, order not confirmed
+who: consumer
+detect:
+  sender_tiers: [bank, merchant, upi_app]
+  positive_phrases: [card, wallet, debited, charged, order, payment failed, declined]
+  negative_phrases: [otp, promotional offer]
+  required_fields: [amount_paise]
+lifecycle:
+  trigger_event: debit_without_order_confirmation
+  expected_resolution: refund or order confirmation
+  deadline_source: linked registry rule
+rule_id: R-004
+rule_status: Seeded
+evidence: [debit alert, failure notice, order status, transaction reference, statement]
+escalation: [merchant, payment provider, issuing bank, nodal officer]
+template: card_debited_order_unconfirmed.md
+eval_set: card_debited_order_unconfirmed

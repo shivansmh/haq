@@ -1,0 +1,18 @@
+id: atm_cash_not_dispensed
+name: ATM cash not dispensed after debit
+who: consumer
+detect:
+  sender_tiers: [bank]
+  positive_phrases: [atm, cash not dispensed, dispense incomplete, debited]
+  negative_phrases: [otp, promotional offer]
+  required_fields: [amount_paise]
+lifecycle:
+  trigger_event: atm_cash_not_dispensed
+  expected_resolution: cash reversal
+  deadline_source: linked registry rule
+rule_id: R-003
+rule_status: Seeded
+evidence: [ATM debit alert, ATM location and date, statement, transaction reference, complaint acknowledgement]
+escalation: [issuing bank, acquiring bank, bank nodal officer, ombudsman]
+template: atm_cash_not_dispensed.md
+eval_set: atm_cash_not_dispensed

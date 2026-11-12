@@ -1,0 +1,18 @@
+id: order_cancelled_refund_delayed
+name: Order cancelled, refund delayed
+who: consumer
+detect:
+  sender_tiers: [merchant, bank, upi_app]
+  positive_phrases: [order cancelled, booking cancelled, refund initiated, refund pending]
+  negative_phrases: [refund credited, refund received, delivered]
+  required_fields: [amount_paise]
+lifecycle:
+  trigger_event: order_cancelled
+  expected_resolution: refund credited
+  deadline_source: no verified registry rule yet
+rule_id: null
+rule_status: None
+evidence: [cancellation email, refund promise, original debit, statement showing no credit]
+escalation: [merchant support, payment provider, issuing bank, consumer grievance channel]
+template: order_cancelled_refund_delayed.md
+eval_set: order_cancelled_refund_delayed
