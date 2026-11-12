@@ -1,24 +1,24 @@
-# Haq web client
+# Haq Noir & Gold
 
-The live demo is published at [shivansmh.github.io/haq](https://shivansmh.github.io/haq/).
+I build a fronten for https://github.com/shivansmh/haq. some of the progress is at https://github.com/shivansmh/haq-23c471eb. i want to finish this whole frontend, also change the color pallette of this site to maybe black mostly and then hints of gold could also add strip lines like these. and make the sweeper animation on the landing page more smooth and interactive
 
-The client is a mobile-first, editorial sweep experience: it explains Gmail consent before connecting, filters a sample inbox or a real connected inbox, shows source-backed findings, keeps uncertainty visible, and prepares a draft the user files themselves.
+This project was built with [Lovable](https://lovable.dev).
 
-## Local development
+## Build with Lovable
 
-```bash
-npm install
+Continue developing this project in the [Lovable editor](https://lovable.dev/projects/f1fdd237-26b2-407b-889a-06dedaf9778e).
+
+- **Ship faster**: describe what you want to build and Lovable handles the code.
+- **Stay in sync**: every change made in Lovable is committed straight to this repository.
+- **Full ownership**: this code is yours. Push to `main` on GitHub and your changes sync back into Lovable, ready for your next prompt.
+
+## Development
+
+Prefer working locally? You need Node.js and npm — [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating).
+
+```sh
+git clone <this-repository-url>
+cd <repository-name>
+npm i
 npm run dev
 ```
-
-The client uses `http://localhost:8000` as its local API origin. Run the backend from the repository root:
-
-```bash
-python server.py
-```
-
-Live Gmail OAuth needs the Google Cloud and backend variables described in [`docs/GMAIL_DEPLOYMENT.md`](../docs/GMAIL_DEPLOYMENT.md). The browser does not accept or store access tokens; the backend owns the OAuth exchange and HttpOnly session cookie.
-
-## GitHub Pages
-
-Pages deploys automatically from `main` through `.github/workflows/pages.yml`. Set the repository Actions variable `HAQ_API_URL` to the deployed HTTPS API origin before using live Gmail. Without that variable, the public site remains safe demo mode and the sample inbox still works.

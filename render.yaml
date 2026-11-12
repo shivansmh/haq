@@ -18,7 +18,7 @@ services:
       - key: FRONTEND_ORIGINS
         value: "http://localhost:5173,https://shivansmh.github.io"
       - key: FRONTEND_URL
-        value: "https://shivansmh.github.io/haq-noir-gold"
+        value: "https://shivansmh.github.io/haq"
       - key: COOKIE_SECURE
         value: "true"
       - key: LLM_ENABLED

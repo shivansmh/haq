@@ -48,7 +48,7 @@ FRONTEND_ORIGINS = [
     for origin in os.getenv("FRONTEND_ORIGINS", "http://localhost:5173,https://shivansmh.github.io").split(",")
     if origin.strip()
 ]
-FRONTEND_URL = os.getenv("FRONTEND_URL", "https://shivansmh.github.io/haq-noir-gold").rstrip("/")
+FRONTEND_URL = os.getenv("FRONTEND_URL", "https://shivansmh.github.io/haq").rstrip("/")
 OAUTH_REDIRECT_URI = os.getenv("OAUTH_REDIRECT_URI", "http://localhost:8000/v1/gmail/callback")
 COOKIE_SECURE = os.getenv("COOKIE_SECURE", "false").lower() == "true"
 SESSION_COOKIE = "haq_session"

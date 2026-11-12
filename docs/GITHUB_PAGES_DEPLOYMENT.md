@@ -1,22 +1,24 @@
 # Haq GitHub Pages deployment
 
-The Lovable frontend lives in `shivansmh/haq-noir-gold` and is deployed as a static SPA at:
+The canonical Haq repository contains both the backend and the Lovable frontend:
 
-`https://shivansmh.github.io/haq-noir-gold/`
+- Repository: `https://github.com/shivansmh/haq`
+- Frontend source: `web/`
+- Pages URL: `https://shivansmh.github.io/haq/`
+- API: `https://haq-api-u3pz.onrender.com`
 
-The frontend calls the existing Render API at `https://haq-api-u3pz.onrender.com`. The Pages build is
-run by `.github/workflows/pages.yml`; it creates `dist/index.html`, copies it to `dist/404.html` for
-TanStack Router deep links, and publishes the artifact through GitHub Pages.
+The root `.github/workflows/pages.yml` builds `web/` as a static SPA, copies `index.html` to
+`404.html` for TanStack Router deep links, and publishes the artifact through GitHub Pages.
 
-For Gmail OAuth to work in production, the Google OAuth client must allow this callback URI:
+For Gmail OAuth, the Google OAuth client must allow:
 
 `https://haq-api-u3pz.onrender.com/v1/gmail/callback`
 
-The Render service must use these non-secret values:
+Render should use:
 
 - `FRONTEND_ORIGINS=http://localhost:5173,https://shivansmh.github.io`
-- `FRONTEND_URL=https://shivansmh.github.io/haq-noir-gold`
+- `FRONTEND_URL=https://shivansmh.github.io/haq`
 - `OAUTH_REDIRECT_URI=https://haq-api-u3pz.onrender.com/v1/gmail/callback`
 
-`GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, and any Groq key remain secrets. GitHub Pages hosts only
-frontend assets; Gmail tokens and sweep processing remain server-side in the Render API.
+GitHub Pages hosts only frontend assets. Gmail tokens and sweep processing remain server-side in the
+Render API.

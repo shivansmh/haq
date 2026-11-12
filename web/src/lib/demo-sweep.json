@@ -1,0 +1,396 @@
+{
+  "status": "success",
+  "emails_scanned": 9,
+  "noise_filtered": 4,
+  "financial_alerts_found": 5,
+  "violations_detected": 3,
+  "emails": [
+    {
+      "id": "msg-002",
+      "sender": "<EMAIL_1>",
+      "subject": "Payment Failed: Your payment of Rs 2,000 at Swiggy was not completed",
+      "date": "03 Nov 2026, 14:23",
+      "snippet": "Your payment failed at merchant end. Amount debited from your bank will be reversed automatically within RBI TAT.",
+      "status": "violation_detected",
+      "filterTag": "Failed payment with money debited; review evidence",
+      "signalKind": "upi_failed_debited",
+      "signalReasons": [
+        "sender is a known upi app domain (phonepe.com)",
+        "amount found: ₹2,000.00",
+        "failure wording",
+        "debit wording: money may have left the account"
+      ],
+      "extractedAmount": 200000,
+      "extractedChannel": "UPI",
+      "extractedRef": null
+    },
+    {
+      "id": "msg-004",
+      "sender": "<EMAIL_1>",
+      "subject": "Transaction Alert: ATM Cash Dispense Incomplete Rs 5,000.00",
+      "date": "28 Oct 2026, 19:40",
+      "snippet": "Dear Customer, txn at ATM 9422 failed to dispense cash Rs 5,000. Ref: ATM8829103. If not reversed in 5 days, contact branch.",
+      "status": "violation_detected",
+      "filterTag": "ATM withdrawal failed; review evidence",
+      "signalKind": "atm_failure",
+      "signalReasons": [
+        "sender is a known bank domain (sbi.co.in)",
+        "amount found: ₹5,000.00",
+        "reference found: ATM8829103",
+        "ATM wording with failure wording"
+      ],
+      "extractedAmount": 500000,
+      "extractedChannel": "ATM",
+      "extractedRef": "ATM8829103"
+    },
+    {
+      "id": "msg-005",
+      "sender": "<EMAIL_1>",
+      "subject": "Overdue Notice: Payment status for Invoice #MSME-2026-441",
+      "date": "15 Oct 2026, 10:30",
+      "snippet": "Dear Supplier, regarding your tax invoice #MSME-2026-441 for Rs 1,42,800.00, our finance team is processing approval. Dues are overdue by 42 days.",
+      "status": "violation_detected",
+      "filterTag": "Overdue invoice; review evidence",
+      "signalKind": "overdue_invoice",
+      "signalReasons": [
+        "amount found: ₹142,800.00",
+        "reference found: MSME-2026-441",
+        "invoice wording with overdue wording"
+      ],
+      "extractedAmount": 14280000,
+      "extractedChannel": "MSME",
+      "extractedRef": "MSME-2026-441"
+    },
+    {
+      "id": "msg-001",
+      "sender": "<EMAIL_1>",
+      "subject": "Alert: Your HDFC Bank account was debited for UPI txn Rs 2,000.00",
+      "date": "03 Nov 2026, 14:22",
+      "snippet": "Rs 2,000.00 debited from account **9122 via UPI to SWIGGY. UPI Ref 431209845123. If not done by you, report to bank.",
+      "status": "financial_alert",
+      "filterTag": "Debit alert",
+      "signalKind": "debit",
+      "signalReasons": [
+        "sender is a known bank domain (hdfcbank.net)",
+        "amount found: ₹2,000.00",
+        "reference found: 431209845123",
+        "debit wording"
+      ],
+      "extractedAmount": 200000,
+      "extractedChannel": "UPI",
+      "extractedRef": "431209845123"
+    },
+    {
+      "id": "msg-003",
+      "sender": "<EMAIL_1>",
+      "subject": "Alert: Reversal credit of Rs 2,000.00 received in your account",
+      "date": "09 Nov 2026, 11:05",
+      "snippet": "Account **9122 credited with Rs 2,000.00 on 09-Nov-2026 by UPI Reversal / SWIGGY / <AADHAAR_1>.",
+      "status": "financial_alert",
+      "filterTag": "Reversal / refund credit",
+      "signalKind": "refund_credited",
+      "signalReasons": [
+        "sender is a known bank domain (hdfcbank.net)",
+        "amount found: ₹2,000.00",
+        "reference found: 431209845123",
+        "reversal or refund credited"
+      ],
+      "extractedAmount": 200000,
+      "extractedChannel": "UPI",
+      "extractedRef": "431209845123"
+    },
+    {
+      "id": "msg-006",
+      "sender": "<EMAIL_1>",
+      "subject": "Craving Biryani? Get 50% flat off on tonight’s feast!",
+      "date": "03 Nov 2026, 19:00",
+      "snippet": "Use code TASTY50 on orders above Rs 299. Explore top rated restaurants near you now...",
+      "status": "noise",
+      "filterTag": "Promotional noise filtered",
+      "signalReasons": [
+        "promotional wording, no payment event"
+      ]
+    },
+    {
+      "id": "msg-007",
+      "sender": "<EMAIL_1>",
+      "subject": "Google Verification Code: 482910",
+      "date": "04 Nov 2026, 09:12",
+      "snippet": "Your one-time verification code is 482910. Never share this code with anyone...",
+      "status": "noise",
+      "filterTag": "OTP / verification filtered",
+      "signalReasons": [
+        "OTP wording with no amount"
+      ]
+    },
+    {
+      "id": "msg-008",
+      "sender": "<EMAIL_1>",
+      "subject": "Shivansh, you appeared in 14 searches this week",
+      "date": "05 Nov 2026, 10:15",
+      "snippet": "See who is looking for skills like Python, AI Agents, and React in your area...",
+      "status": "noise",
+      "filterTag": "Developer / social notification filtered",
+      "signalReasons": [
+        "blocked sender domain linkedin.com"
+      ]
+    },
+    {
+      "id": "msg-009",
+      "sender": "<EMAIL_1>",
+      "subject": "Delivered: Your package with Noise Cancelling Earphones",
+      "date": "06 Nov 2026, 16:30",
+      "snippet": "Your order was handed directly to a resident. Let us know how delivery went...",
+      "status": "noise",
+      "filterTag": "Financial wording but no payment event",
+      "signalReasons": [
+        "no failure, cancellation, debit or refund pattern"
+      ]
+    }
+  ],
+  "candidates": [
+    {
+      "txn_id": "gmail-msg-001",
+      "date": "2026-11-03",
+      "reversal_date": "2026-11-09",
+      "narration_clean": "Debit followed by a matching reversal",
+      "debit": 200000,
+      "channel": "UPI",
+      "ref": "431209845123",
+      "parse_confidence": 0.9,
+      "evidence_status": "paired_reversal",
+      "reversal_seen": true,
+      "email_source": {
+        "sender": "<EMAIL_1>",
+        "subject": "Alert: Your HDFC Bank account was debited for UPI txn Rs 2,000.00",
+        "snippet": "Rs 2,000.00 debited from account **9122 via UPI to SWIGGY. UPI Ref 431209845123. If not done by you, report to bank."
+      },
+      "related_sources": [
+        {
+          "sender": "<EMAIL_1>",
+          "subject": "Payment Failed: Your payment of Rs 2,000 at Swiggy was not completed",
+          "snippet": "Your payment failed at merchant end. Amount debited from your bank will be reversed automatically within RBI TAT."
+        }
+      ]
+    },
+    {
+      "txn_id": "gmail-msg-004",
+      "date": "2026-10-28",
+      "reversal_date": null,
+      "narration_clean": "ATM withdrawal failed",
+      "debit": 500000,
+      "channel": "ATM",
+      "ref": "ATM8829103",
+      "parse_confidence": 0.75,
+      "evidence_status": "potential_exception",
+      "reversal_seen": false,
+      "email_source": {
+        "sender": "<EMAIL_1>",
+        "subject": "Transaction Alert: ATM Cash Dispense Incomplete Rs 5,000.00",
+        "snippet": "Dear Customer, txn at ATM 9422 failed to dispense cash Rs 5,000. Ref: ATM8829103. If not reversed in 5 days, contact branch."
+      },
+      "related_sources": []
+    },
+    {
+      "txn_id": "gmail-msg-005",
+      "date": "2026-10-15",
+      "reversal_date": null,
+      "narration_clean": "Invoice marked overdue",
+      "debit": 14280000,
+      "channel": "MSME",
+      "ref": "MSME-2026-441",
+      "parse_confidence": 0.75,
+      "evidence_status": "potential_exception",
+      "reversal_seen": false,
+      "email_source": {
+        "sender": "<EMAIL_1>",
+        "subject": "Overdue Notice: Payment status for Invoice #MSME-2026-441",
+        "snippet": "Dear Supplier, regarding your tax invoice #MSME-2026-441 for Rs 1,42,800.00, our finance team is processing approval. Dues are overdue by 42 days."
+      },
+      "related_sources": []
+    }
+  ],
+  "cases": [
+    {
+      "case_id": "1046ecd53b7fb0e5",
+      "claim_type": "atm_cash_not_dispensed",
+      "rule_id": "R-003",
+      "rule_status": "Seeded",
+      "events": [
+        {
+          "event_id": "7814a3415a9823d8",
+          "email_id": "msg-004",
+          "claim_type": "atm_cash_not_dispensed",
+          "event_type": "atm_cash_not_dispensed",
+          "amount_paise": 500000,
+          "reference": "ATM8829103",
+          "event_date": "2026-10-28",
+          "quote": "State Bank Alert: Your card **4412 attempted cash withdrawal of Rs 5,000.00 at ATM S1NW009422. Cash was not dispensed due to terminal timeout. Txn Ref: ATM8829103.",
+          "sender": "no-reply@sbi.co.in",
+          "subject": "Transaction Alert: ATM Cash Dispense Incomplete Rs 5,000.00",
+          "confidence": "High",
+          "reasons": [
+            "sender is a known bank domain (sbi.co.in)",
+            "amount found: ₹5,000.00",
+            "reference found: ATM8829103",
+            "ATM wording with failure wording"
+          ]
+        }
+      ],
+      "amount_paise": 500000,
+      "reference": "ATM8829103",
+      "deadline": null,
+      "resolved_on": null,
+      "days_overdue": null,
+      "status": "open"
+    },
+    {
+      "case_id": "3d95deeefe0b9a0d",
+      "claim_type": "msme_invoice_overdue",
+      "rule_id": "R-007",
+      "rule_status": "Seeded",
+      "events": [
+        {
+          "event_id": "c7fba29995d9255a",
+          "email_id": "msg-005",
+          "claim_type": "msme_invoice_overdue",
+          "event_type": "invoice_overdue",
+          "amount_paise": 14280000,
+          "reference": "MSME-2026-441",
+          "event_date": "2026-10-15",
+          "quote": "Dear Shivansh, regarding Invoice #MSME-2026-441 for software development services (amount: Rs 1,42,800.00, acceptance date: 03-Sep-2026), our audit is underway. We acknowledge dues are overdue.",
+          "sender": "accounts@techbuyer-corp.in",
+          "subject": "Overdue Notice: Payment status for Invoice #MSME-2026-441",
+          "confidence": "Medium",
+          "reasons": [
+            "amount found: ₹142,800.00",
+            "reference found: MSME-2026-441",
+            "invoice wording with overdue wording"
+          ]
+        }
+      ],
+      "amount_paise": 14280000,
+      "reference": "MSME-2026-441",
+      "deadline": null,
+      "resolved_on": null,
+      "days_overdue": null,
+      "status": "open"
+    },
+    {
+      "case_id": "7c459e505b54c0b6",
+      "claim_type": "upi_failed_debited",
+      "rule_id": "R-001",
+      "rule_status": "Seeded",
+      "events": [
+        {
+          "event_id": "d78e92a81c3352c0",
+          "email_id": "msg-001",
+          "claim_type": "upi_failed_debited",
+          "event_type": "debit",
+          "amount_paise": 200000,
+          "reference": "431209845123",
+          "event_date": "2026-11-03",
+          "quote": "Dear Customer, Rs 2,000.00 has been debited from your account **9122 on 03-Nov-2026 towards UPI txn to SWIGGY. UPI Reference Number: [ID REDACTED]. If this was not authorized by you, call 1800-202-6161.",
+          "sender": "alerts@hdfcbank.net",
+          "subject": "Alert: Your HDFC Bank account was debited for UPI txn Rs 2,000.00",
+          "confidence": "High",
+          "reasons": [
+            "sender is a known bank domain (hdfcbank.net)",
+            "amount found: ₹2,000.00",
+            "reference found: 431209845123",
+            "debit wording"
+          ]
+        },
+        {
+          "event_id": "e8e134808dc05bb5",
+          "email_id": "msg-002",
+          "claim_type": "upi_failed_debited",
+          "event_type": "payment_failed",
+          "amount_paise": 200000,
+          "reference": null,
+          "event_date": "2026-11-03",
+          "quote": "Hi Shivansh, your transaction of Rs 2,000 at Swiggy failed. Since money was debited from your bank account, it will be refunded back as per the RBI turnaround time framework.",
+          "sender": "support@phonepe.com",
+          "subject": "Payment Failed: Your payment of Rs 2,000 at Swiggy was not completed",
+          "confidence": "High",
+          "reasons": [
+            "sender is a known upi app domain (phonepe.com)",
+            "amount found: ₹2,000.00",
+            "failure wording",
+            "debit wording: money may have left the account"
+          ]
+        },
+        {
+          "event_id": "30658faecfcd5fb6",
+          "email_id": "msg-003",
+          "claim_type": "upi_failed_debited",
+          "event_type": "refund_credited",
+          "amount_paise": 200000,
+          "reference": "431209845123",
+          "event_date": "2026-11-09",
+          "quote": "Dear Customer, account **9122 credited with Rs 2,000.00 on 09-Nov-2026 11:05:12 by UPI Reversal / SWIGGY / [ID REDACTED]. Available balance: Rs 20,420.00.",
+          "sender": "alerts@hdfcbank.net",
+          "subject": "Alert: Reversal credit of Rs 2,000.00 received in your account",
+          "confidence": "High",
+          "reasons": [
+            "sender is a known bank domain (hdfcbank.net)",
+            "amount found: ₹2,000.00",
+            "reference found: 431209845123",
+            "reversal or refund credited"
+          ]
+        }
+      ],
+      "amount_paise": 200000,
+      "reference": "431209845123",
+      "deadline": null,
+      "resolved_on": "2026-11-09",
+      "days_overdue": null,
+      "status": "resolved_on_time"
+    }
+  ],
+  "claim_packs": [
+    {
+      "case_id": "1046ecd53b7fb0e5",
+      "claim_type": "atm_cash_not_dispensed",
+      "draft": "Subject: Request to investigate ATM debit without cash dispensed\n\nHello,\n\nI am requesting an investigation into an ATM transaction of ₹5,000.00. Cash was not dispensed or the dispense was incomplete. The transaction reference is ATM8829103; the current case status is open.\n\nThe linked rule is R-003 and is marked Seeded.\nPlease confirm the complaint reference, trace the ATM journal and reverse the debit if appropriate.\n\nRegards,\n[Name]\n",
+      "evidence_checklist": [
+        "ATM debit alert",
+        "ATM location and date",
+        "statement",
+        "transaction reference",
+        "complaint acknowledgement"
+      ],
+      "escalation": [
+        "issuing bank",
+        "acquiring bank",
+        "bank nodal officer",
+        "ombudsman"
+      ],
+      "rule_id": "R-003",
+      "rule_status": "Seeded",
+      "deadline": null,
+      "days_overdue": null
+    },
+    {
+      "case_id": "3d95deeefe0b9a0d",
+      "claim_type": "msme_invoice_overdue",
+      "draft": "Subject: Request to resolve overdue MSME invoice\n\nHello,\n\nI am following up on the overdue invoice for ₹142,800.00, referenced as MSME-2026-441. The current case status is open.\n\nThe linked rule is R-007 and is marked Seeded.\nPlease confirm the accepted amount, payment date, and any documented dispute. I have attached the invoice, acceptance evidence, correspondence, and ledger records.\n\nRegards,\n[Supplier name]\n",
+      "evidence_checklist": [
+        "invoice",
+        "delivery or acceptance proof",
+        "buyer acknowledgement",
+        "ledger",
+        "bank statement"
+      ],
+      "escalation": [
+        "buyer accounts team",
+        "buyer grievance officer",
+        "facilitation council"
+      ],
+      "rule_id": "R-007",
+      "rule_status": "Seeded",
+      "deadline": null,
+      "days_overdue": null
+    }
+  ]
+}
