@@ -133,7 +133,12 @@ def _gmail_token(request: Request) -> str:
 def _gmail_llm_runtime() -> tuple[GroqClient | None, LLMSettings]:
     """Return optional Groq assistance; the spend ceiling applies per process."""
     global _GROQ_CLIENT
-    settings = load_settings()
+    try:
+        settings = load_settings()
+    except ValueError:
+        # A broken optional provider configuration must never take down Gmail's
+        # deterministic-only sweep path; /healthz exposes a safe readiness code.
+        return None, LLMSettings()
     if not settings.enabled:
         return None, settings
     with _GROQ_CLIENT_LOCK:
@@ -257,9 +262,10 @@ def gmail_status(request: Request) -> dict[str, bool]:
 def gmail_scan_endpoint(request: Request, payload: GmailScanRequest) -> dict[str, Any]:
     """Search Gmail with the server-side session and apply the in-memory sweep."""
     try:
+        access_token = _gmail_token(request)
         llm_client, llm_settings = _gmail_llm_runtime()
         return search_gmail(
-            _gmail_token(request),
+            access_token,
             payload.query or "",
             payload.max_results,
             llm_client=llm_client,

@@ -45,6 +45,8 @@ LLM_MODEL_EXTRACT=openai/gpt-oss-20b
 
 `GROQ_API_KEY` alone does not enable calls. `LLM_ENABLED` defaults to `false`, and the spend ceiling defaults to `$0`, which blocks provider requests before network I/O. Pick a cap you explicitly accept; the current Groq client's budget is shared by the API process and resets when that process restarts. The model allowlist is limited to models with configured pricing so unknown model names fail closed. Keep the per-sweep message limit low for a hackathon deployment. The sweep response reports whether AI actually ran or the deterministic-only fallback was used.
 
+Enter `GROQ_SPEND_CAP_USD` as a plain positive decimal such as `0.05` (without `$` or commas), and choose the amount you are comfortable allowing. Invalid optional Groq settings now fall back to deterministic-only email processing rather than breaking the Gmail scan.
+
 `GET /healthz` includes a non-secret `groq_status` (`disabled`, `missing_key`, `zero_spend_cap`, `invalid_spend_cap`, `unsupported_model`, or `ready`). It reports no credential or cap value and does not call Groq.
 
 The OAuth session store is intentionally in memory for the hackathon demo. For a multi-instance production service, replace it with encrypted server-side session storage and rotate/revoke refresh tokens on disconnect.

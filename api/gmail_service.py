@@ -93,6 +93,7 @@ def get_google_auth_url(client_id: str, redirect_uri: str, state: str) -> str:
         "response_type": "code",
         "scope": GMAIL_SCOPE,
         "access_type": "offline",
+        "prompt": "consent",
         "include_granted_scopes": "true",
         "state": state,
     }
