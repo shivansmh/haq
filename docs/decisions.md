@@ -42,3 +42,11 @@ Open decisions are not silently resolved. Each convention must cite its source a
 - **Credential handling:** bearer, Google access/refresh-token-shaped, and explicit `access_token`/`refresh_token` inputs fail closed before redaction rather than being forwarded or logged.
 - **AI provider choice:** no provider decision is needed for a2 because this task adds no provider call. Provider selection must be made before implementing the first real adapter.
 - **Redactor boundary:** `clean/redact.py` keeps its existing string-returning contract for statement normalization; `llm/redact.py` is a separate provenance-aware boundary because changing the clean contract would regress deterministic parsing and the LLM path needs an immutable token map.
+
+## 2026-11-12 — a3-verify
+
+- **Verification boundary:** A3 exposes pure normalization, quote verification, trust assignment, conflict reporting, and calculation-safety helpers only; no live API or Gmail behavior is changed.
+- **Quote provenance:** a quote must occur in the original message after conservative whitespace, currency, and digit-grouping normalization, and the extracted value must also occur inside that quote.
+- **Date ambiguity:** numeric dates with both day and month at or below 12 are rejected unless a known sender convention (`DMY` or `MDY`) is supplied. ISO and textual month forms remain unambiguous.
+- **Trust tiers:** T-A is deterministic, T-B is AI-suggested and text-verified, and T-C is explicitly user-confirmed. T-B values are rejected by the calculation input guard.
+- **Conflict handling:** deterministic/model disagreements produce the SOP JSON shape with `status=conflict` and `action=ask_user`; no side is selected silently.
