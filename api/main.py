@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 import os
 import secrets
 import time
@@ -18,7 +19,7 @@ from engine.delay import compute_range, delay_days
 from engine.registry_loader import load_registry
 from ingest.paste_parser import parse_alert_text
 from llm.config import LLMSettings, load_settings
-from llm.groq_client import GroqClient
+from llm.groq_client import PRICING, GroqClient
 
 from .fixtures import health_payload
 from .gmail_service import (
@@ -148,9 +149,34 @@ def _gmail_llm_runtime() -> tuple[GroqClient | None, LLMSettings]:
     return _GROQ_CLIENT, settings
 
 
+def _groq_readiness() -> str:
+    enabled = os.getenv("LLM_ENABLED", "false").strip().lower() in {"1", "true", "yes", "on"}
+    if not enabled:
+        return "disabled"
+    if not os.getenv("GROQ_API_KEY", "").strip():
+        return "missing_key"
+    try:
+        cap = float(os.getenv("GROQ_SPEND_CAP_USD", "0"))
+    except ValueError:
+        return "invalid_spend_cap"
+    if not math.isfinite(cap) or cap < 0:
+        return "invalid_spend_cap"
+    if cap == 0:
+        return "zero_spend_cap"
+    model_ids = (
+        os.getenv("LLM_MODEL_TRIAGE", "openai/gpt-oss-20b").strip(),
+        os.getenv("LLM_MODEL_EXTRACT", "openai/gpt-oss-20b").strip(),
+        os.getenv("LLM_MODEL_RECHECK", "openai/gpt-oss-20b").strip(),
+    )
+    if any(model not in PRICING for model in model_ids):
+        return "unsupported_model"
+    return "ready"
+
+
 @app.get("/healthz")
 def healthz() -> dict[str, Any]:
     payload = health_payload()
+    payload["groq_status"] = _groq_readiness()
     payload["registry"] = {
         "loaded": len(REGISTRY.all()),
         "verified": sum(entry.status == "Verified" for entry in REGISTRY.all()),
