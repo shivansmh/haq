@@ -28,6 +28,19 @@ def scan_text(text: str, path: Path) -> list[str]:
             ",".join(value for key, value in row.items() if key != "reference") for row in rows
         )
     scrubbed = re.sub(r"/\d{12}/", "/REF/", text)
+    # Demo messages contain synthetic UPI references, which are transaction IDs,
+    # not bank account numbers. Keep scanning surrounding text for real PII.
+    scrubbed = re.sub(r"\bUPI\s+Ref\s+\d{9,18}\b", "UPI Ref REF", scrubbed, flags=re.IGNORECASE)
+    scrubbed = re.sub(
+        r'("(?:reference|extractedRef)"\s*:\s*")\d{9,18}(\")',
+        r"\1REF\2",
+        scrubbed,
+        flags=re.IGNORECASE,
+    )
+    scrubbed = re.sub(r"(\bref\s*:\s*[\"'])\d{9,18}([\"'])", r"\1REF\2", scrubbed, flags=re.IGNORECASE)
+    if path.as_posix() == "web/src/lib/demo-sweep.json":
+        # The fixture uses fictional bank notification sender aliases.
+        scrubbed = re.sub(r'("sender"\s*:\s*")[^"]+@[^"]+(\")', r"\1demo-sender\2", scrubbed)
     patterns = (
         ("PAN", PAN),
         ("Aadhaar", AADHAAR),
