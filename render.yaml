@@ -14,11 +14,11 @@ services:
       - key: GOOGLE_CLIENT_SECRET
         sync: false
       - key: OAUTH_REDIRECT_URI
-        sync: false
-      - key: FRONTEND_ORIGIN
-        sync: false
+        value: "https://haq-api-u3pz.onrender.com/v1/gmail/callback"
+      - key: FRONTEND_ORIGINS
+        value: "http://localhost:5173,https://shivansmh.github.io"
       - key: FRONTEND_URL
-        sync: false
+        value: "https://shivansmh.github.io/haq-noir-gold"
       - key: COOKIE_SECURE
         value: "true"
       - key: LLM_ENABLED

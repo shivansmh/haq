@@ -43,8 +43,12 @@ from .schemas import (
 from .sweep_jobs import SWEEP_JOBS, SweepJob
 
 REGISTRY = load_registry()
-FRONTEND_ORIGIN = os.getenv("FRONTEND_ORIGIN", "http://localhost:5173").rstrip("/")
-FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173").rstrip("/")
+FRONTEND_ORIGINS = [
+    origin.strip().rstrip("/")
+    for origin in os.getenv("FRONTEND_ORIGINS", "http://localhost:5173,https://shivansmh.github.io").split(",")
+    if origin.strip()
+]
+FRONTEND_URL = os.getenv("FRONTEND_URL", "https://shivansmh.github.io/haq-noir-gold").rstrip("/")
 OAUTH_REDIRECT_URI = os.getenv("OAUTH_REDIRECT_URI", "http://localhost:8000/v1/gmail/callback")
 COOKIE_SECURE = os.getenv("COOKIE_SECURE", "false").lower() == "true"
 SESSION_COOKIE = "haq_session"
@@ -66,7 +70,7 @@ app = FastAPI(
 # Enable CORS for frontend Vite dev server & production origin
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[FRONTEND_ORIGIN],
+    allow_origins=FRONTEND_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
