@@ -7,7 +7,6 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from events.models import Event
 
-
 CaseStatus = Literal["open", "resolved_on_time", "resolved_late", "unresolved_past_deadline"]
 
 

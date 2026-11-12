@@ -5,7 +5,6 @@ from pathlib import Path
 from cases.models import Case
 from taxonomy.loader import load_taxonomy
 
-
 ROOT = Path(__file__).resolve().parents[1]
 
 

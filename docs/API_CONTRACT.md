@@ -17,6 +17,12 @@ The canonical machine-readable contract is the FastAPI-generated OpenAPI documen
 | GET | `/v1/gmail/sweeps/{id}` | Returns job state, elapsed time and real listed/triaged/analysed/relevant/not-analysed counts. |
 | DELETE | `/v1/gmail/sweeps/{id}` | Requests cancellation of the in-memory sweep. |
 
+Completed sweep results also include `cases` and `claim_packs`. A case groups related events across
+multiple emails, carries an explicit status (`open`, `resolved_on_time`, `resolved_late`, or
+`unresolved_past_deadline`), and includes the linked rule status. Deadlines remain `null` unless the
+linked registry entry is `Verified`; seeded or missing rules produce evidence-first packs without a
+claimed deadline or compensation amount.
+
 All T0 responses are demo fixtures. They must not be presented as verified legal calculations.
 
 Background sweeps are transient. A provider limit, host restart or free-instance sleep can end a

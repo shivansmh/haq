@@ -6,9 +6,9 @@ from hashlib import sha256
 from typing import Any
 
 from api.upi_signals import Signal, classify_message
+from clean.redact import redact_sensitive
 
 from .models import Event, EventType
-
 
 _KIND_TO_EVENT: dict[str, EventType] = {
     "debit": "debit",
@@ -62,7 +62,7 @@ def normalize_email(message: dict[str, Any]) -> Event | None:
         amount_paise=signal.amount_paise,
         reference=signal.ref,
         event_date=_date(message.get("date")),
-        quote=quote[:2000],
+        quote=redact_sensitive(quote[:2000]),
         sender=sender,
         subject=subject,
         confidence="High" if signal.sender_tier in {"bank", "upi_app", "merchant"} else "Medium",

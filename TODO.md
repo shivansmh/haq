@@ -1,5 +1,12 @@
 # T5 Frontend TODO
 
+## Delivered case-centered backend spine
+
+- [x] Five taxonomy YAML files drive sender signals, lifecycle, registry link, evidence, escalation, and claim template selection.
+- [x] Normalized events group debit, failure, refund, cancellation, ATM, and invoice facts while redacting sensitive quote content.
+- [x] Cases pair related emails by reference or same-amount proximity, deduplicate events, and expose safe status fields.
+- [x] Gmail sweep responses include grouped cases and evidence-first claim packs without computing from unverified registry entries.
+
 ## Mobile-first golden path
 
 - [x] Home shows three entry cards: payment failed, business owes me, forgotten money.

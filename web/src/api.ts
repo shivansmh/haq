@@ -50,6 +50,34 @@ export type SweepResult = {
   llm_status?: 'disabled' | 'unavailable' | 'timeout' | 'invalid_output' | 'ok';
   ai_assisted_count?: number;
   coverage?: { listed: number; triaged: number; analysed: number; relevant: number; not_analysed: number };
+  cases?: Case[];
+  claim_packs?: ClaimPack[];
+};
+
+export type Case = {
+  case_id: string;
+  claim_type: string;
+  rule_id: string | null;
+  rule_status: string;
+  events: Array<{ event_id: string; event_type: string; amount_paise?: number | null; reference?: string | null; event_date?: string | null; quote: string }>;
+  amount_paise?: number | null;
+  reference?: string | null;
+  deadline?: string | null;
+  resolved_on?: string | null;
+  days_overdue?: number | null;
+  status: 'open' | 'resolved_on_time' | 'resolved_late' | 'unresolved_past_deadline';
+};
+
+export type ClaimPack = {
+  case_id: string;
+  claim_type: string;
+  draft: string;
+  evidence_checklist: string[];
+  escalation: string[];
+  rule_id: string | null;
+  rule_status: string;
+  deadline: string | null;
+  days_overdue: number | null;
 };
 
 export type SweepJob = {

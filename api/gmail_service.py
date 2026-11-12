@@ -28,6 +28,9 @@ from email.utils import parsedate_to_datetime
 from typing import Any
 from urllib.error import HTTPError
 
+from cases.builder import build_cases
+from claims.pack import build_claim_pack
+from events.normalize import normalize_emails
 from llm.client import LLMClient
 from llm.config import LLMSettings
 from llm.gmail_assistance import enrich_financial_emails
@@ -610,6 +613,14 @@ def filter_and_extract_transactions(
             vetoed.add(str(email["id"]))
     candidates = [c for c in candidates if c["txn_id"].removeprefix("gmail-") not in vetoed]
 
+    domain_messages = [
+        message for message in raw_messages
+        if str(message.get("id", "")) not in vetoed
+    ]
+    cases = build_cases(normalize_emails(domain_messages))
+    case_payloads = [case.model_dump(mode="json") for case in cases]
+    claim_packs = [build_claim_pack(case) for case in cases if case.worth_review or case.status == "open"]
+
     rank = {"violation_detected": 0, "financial_alert": 1, "noise": 2}
     safe_emails.sort(key=lambda email: rank.get(email["status"], 3))  # stable: newest-first within a group
     return {
@@ -621,6 +632,8 @@ def filter_and_extract_transactions(
         "violations_detected": len(candidates),
         "emails": safe_emails,
         "candidates": candidates,
+        "cases": case_payloads,
+        "claim_packs": claim_packs,
         "llm_status": llm_status,
         "ai_assisted_count": sum(
             email.get("llm_assistance", {}).get("status") == "ok" for email in safe_emails
