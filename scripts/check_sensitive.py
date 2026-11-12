@@ -32,12 +32,13 @@ def scan_text(text: str, path: Path) -> list[str]:
     # not bank account numbers. Keep scanning surrounding text for real PII.
     scrubbed = re.sub(r"\bUPI\s+Ref\s+\d{9,18}\b", "UPI Ref REF", scrubbed, flags=re.IGNORECASE)
     scrubbed = re.sub(
-        r'("(?:reference|extractedRef)"\s*:\s*")\d{9,18}(\")',
+        r'("(?:ref|reference|extractedRef)"\s*:\s*")\d{9,18}(\")',
         r"\1REF\2",
         scrubbed,
         flags=re.IGNORECASE,
     )
     scrubbed = re.sub(r"(\bref\s*:\s*[\"'])\d{9,18}([\"'])", r"\1REF\2", scrubbed, flags=re.IGNORECASE)
+    scrubbed = re.sub(r"\breference found:\s*\d{9,18}\b", "reference found: REF", scrubbed, flags=re.IGNORECASE)
     if path.as_posix() == "web/src/lib/demo-sweep.json":
         # The fixture uses fictional bank notification sender aliases.
         scrubbed = re.sub(r'("sender"\s*:\s*")[^"]+@[^"]+(\")', r"\1demo-sender\2", scrubbed)
