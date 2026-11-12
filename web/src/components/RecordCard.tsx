@@ -127,7 +127,7 @@ export function RecordCard({ record }: { record: FlaggedRecord }) {
     <div className="overflow-hidden rounded-2xl border border-border bg-card">
       <button
         onClick={() => setOpen((value) => !value)}
-        className="flex w-full flex-wrap items-center gap-4 p-5 text-left transition-colors hover:bg-secondary/40"
+        className="flex w-full flex-wrap items-start gap-3 p-4 text-left transition-colors hover:bg-secondary/40 sm:items-center sm:gap-4 sm:p-5"
         aria-expanded={open}
       >
         <div className="min-w-0 flex-1">
@@ -167,12 +167,12 @@ export function RecordCard({ record }: { record: FlaggedRecord }) {
               : legal.compliance_label}
           </p>
         </div>
-        <div className="text-right">
+        <div className="shrink-0 text-right">
           <p className="font-display text-2xl">{inr(record.amount.value_paise)}</p>
           <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
             {unmatchedResolution ? `${resolutionNoun} received` : "Transaction amount"}
           </p>
-          {record.transaction.origin_date && (
+          {record.transaction.origin_date && !unmatchedResolution && (
             <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
               {formatDate(record.transaction.origin_date)}
             </p>
@@ -182,7 +182,7 @@ export function RecordCard({ record }: { record: FlaggedRecord }) {
       </button>
 
       {open && (
-        <div className="animate-rise space-y-6 border-t border-border p-5">
+        <div className="animate-rise space-y-6 border-t border-border p-4 sm:p-5">
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="rounded-xl bg-secondary p-4">
               <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
@@ -214,7 +214,13 @@ export function RecordCard({ record }: { record: FlaggedRecord }) {
                 <span
                   className={cn(
                     "rounded-full px-2 py-0.5 text-[10px] font-semibold",
-                    legalStampClass,
+                    unmatchedResolution
+                      ? "bg-secondary text-muted-foreground"
+                      : legal.stamp === "VERIFIED RULE"
+                      ? "bg-primary/15 text-primary"
+                      : legal.stamp === "UNVERIFIED RULE"
+                        ? "bg-warning/15 text-warning"
+                        : "bg-secondary text-muted-foreground",
                   )}
                 >
                   {unmatchedResolution ? "TRANSACTION NOT MATCHED" : legal.stamp}
@@ -402,6 +408,7 @@ export function RecordSummaryStrip({
     total_records: number;
     refunds_received: number;
     refunds_pending: number;
+    refunds_late: number;
     action_needed: number;
     business_records: number;
     gaming_records: number;
@@ -411,12 +418,13 @@ export function RecordSummaryStrip({
     ["Tracked records", summary.total_records],
     ["Resolved", summary.refunds_received],
     ["Pending", summary.refunds_pending],
+    ["Late", summary.refunds_late],
     ["Action needed", summary.action_needed],
     ["Business records", summary.business_records],
     ["Gaming records", summary.gaming_records],
   ];
   return (
-    <div className="grid grid-cols-2 gap-px overflow-hidden rounded-2xl border border-border bg-border sm:grid-cols-3 lg:grid-cols-6">
+    <div className="grid grid-cols-2 gap-px overflow-hidden rounded-2xl border border-border bg-border sm:grid-cols-3 lg:grid-cols-7">
       {cells.map(([label, value]) => (
         <div key={label} className="bg-card px-3 py-3">
           <p className="font-display text-xl">{value}</p>
