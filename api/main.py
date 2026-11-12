@@ -35,10 +35,12 @@ from .schemas import (
     ClassifyResponse,
     DetectRequest,
     GmailScanRequest,
+    GmailSweepRequest,
     IngestRequest,
     MsmeComputeRequest,
     PaymentComputeRequest,
 )
+from .sweep_jobs import SWEEP_JOBS, SweepJob
 
 REGISTRY = load_registry()
 FRONTEND_ORIGIN = os.getenv("FRONTEND_ORIGIN", "http://localhost:5173").rstrip("/")
@@ -273,6 +275,59 @@ def gmail_scan_endpoint(request: Request, payload: GmailScanRequest) -> dict[str
         )
     except GmailAccessError as exc:
         raise HTTPException(status_code=502, detail=str(exc)) from exc
+
+
+@app.post("/v1/gmail/sweeps", status_code=202)
+def gmail_sweep_start(request: Request, payload: GmailSweepRequest) -> dict[str, Any]:
+    """Start a bounded Gmail sweep without holding the browser request open."""
+    session_id = _session_id(request)
+    if not session_id:
+        raise HTTPException(status_code=401, detail="Connect Gmail before starting a sweep")
+    access_token = _gmail_token(request)
+    llm_client, llm_settings = _gmail_llm_runtime()
+
+    def worker(job: SweepJob) -> dict[str, Any]:
+        result = search_gmail(
+            access_token,
+            payload.query or "",
+            payload.max_results,
+            llm_client=llm_client,
+            llm_settings=llm_settings,
+        )
+        job.listed = int(result.get("emails_scanned", 0))
+        job.triaged = sum("llm_assistance" in email for email in result.get("emails", []))
+        job.analysed = sum(
+            email.get("llm_assistance", {}).get("status") == "ok"
+            for email in result.get("emails", [])
+        )
+        job.relevant = int(result.get("financial_alerts_found", 0))
+        job.not_analysed = max(0, payload.max_results - job.analysed)
+        job.updated_at = time.time()
+        return result
+
+    try:
+        job = SWEEP_JOBS.start(session_id, worker)
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    return job.snapshot()
+
+
+@app.get("/v1/gmail/sweeps/{job_id}")
+def gmail_sweep_status(request: Request, job_id: str) -> dict[str, Any]:
+    session_id = _session_id(request)
+    job = SWEEP_JOBS.get(job_id, session_id or "")
+    if not job:
+        raise HTTPException(status_code=404, detail="Sweep job not found or expired")
+    return job.snapshot()
+
+
+@app.delete("/v1/gmail/sweeps/{job_id}")
+def gmail_sweep_cancel(request: Request, job_id: str) -> dict[str, Any]:
+    session_id = _session_id(request)
+    job = SWEEP_JOBS.cancel(job_id, session_id or "")
+    if not job:
+        raise HTTPException(status_code=404, detail="Sweep job not found or expired")
+    return job.snapshot()
 
 
 @app.post("/v1/gmail/demo")

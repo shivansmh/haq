@@ -76,3 +76,11 @@ Open decisions are not silently resolved. Each convention must cite its source a
 - **Authority:** Existing deterministic results and candidate fields remain unchanged. Model values are attached as quote-verified T-B suggestions; A3 ambiguity/conflict handling is applied, and T-B values do not enter calculations.
 - **Spend:** `LLM_ENABLED` defaults to false and `GROQ_SPEND_CAP_USD` defaults to zero. Unsupported model IDs fail closed. The Groq budget is shared by the backend process and resets on process restart; the app operator must set an explicitly accepted positive cap before network calls can occur.
 - **Deployment gate:** Render must receive `GROQ_API_KEY`, `LLM_ENABLED=true`, an explicit positive `GROQ_SPEND_CAP_USD`, and appropriate message/time limits. No secret is included in the repo or frontend.
+
+## 2026-11-12 — full-sweep retrieval and triage
+
+- **Retrieval:** Gmail searches are paginated up to the configured cap (currently 5,000), request pages are bounded at 500, and transient 429/5xx responses honor `Retry-After` with exponential backoff. The search net keeps Promotions, Social and Forums eligible; only spam is excluded by default. Search keywords include English, Hindi and Hinglish variants.
+- **AI gate:** OTP-only messages are dropped locally. Every other message may enter redacted triage; deterministic bank names, amounts and references are weak features, not an eligibility decision. Full bodies are only prepared for relevant or uncertain triage results.
+- **Job lifecycle:** `/v1/gmail/sweeps` returns immediately and exposes per-session queued/running/cancelling/done/failed/expired state with real listed, triaged, analysed, relevant and not-analysed counts. Jobs and raw bodies are in memory only; the result retains redacted summaries and evidence, never a body.
+- **Hosting caveat:** Render free instances can sleep or restart, which loses in-memory jobs. The UI must treat an interrupted/expired job as partial coverage and ask the user to start again; durable job persistence is intentionally not enabled in this hackathon build.
+- **Evaluation status:** no real mailbox text is sent in automated tests. The provider remains disabled by default and a positive spend cap is an operator decision, not a repository default.

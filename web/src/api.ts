@@ -45,6 +45,20 @@ export type SweepResult = {
   candidates: Finding[];
   llm_status?: 'disabled' | 'unavailable' | 'timeout' | 'invalid_output' | 'ok';
   ai_assisted_count?: number;
+  coverage?: { listed: number; triaged: number; analysed: number; relevant: number; not_analysed: number };
+};
+
+type SweepJob = {
+  job_id: string;
+  state: string;
+  listed: number;
+  triaged: number;
+  analysed: number;
+  relevant: number;
+  not_analysed: number;
+  elapsed_seconds: number;
+  result?: SweepResult;
+  error?: string | null;
 };
 
 export type PaymentResult = {
@@ -90,10 +104,19 @@ export const api = {
     return result;
   },
   async liveSweep(onProgress?: (label: string, percent: number) => void): Promise<SweepResult> {
-    onProgress?.('Searching connected Gmail messages', 20);
-    const result = await request<SweepResult>('/v1/gmail/scan', { method: 'POST', body: JSON.stringify({ max_results: 50 }) });
-    onProgress?.('Building a source-backed review', 100);
-    return result;
+    onProgress?.('Starting a background Gmail sweep', 5);
+    const started = await request<SweepJob>('/v1/gmail/sweeps', { method: 'POST', body: JSON.stringify({ max_results: 500 }) });
+    for (;;) {
+      await new Promise((resolve) => setTimeout(resolve, 350));
+      const job = await request<SweepJob>(`/v1/gmail/sweeps/${started.job_id}`);
+      const percent = Math.min(95, job.listed ? Math.round((job.analysed / job.listed) * 90) + 5 : 10);
+      onProgress?.(`Scanned ${job.listed} · triaged ${job.triaged} · analysed ${job.analysed}`, percent);
+      if (job.state === 'done' && job.result) {
+        onProgress?.('Building a source-backed review', 100);
+        return { ...job.result, coverage: { listed: job.listed, triaged: job.triaged, analysed: job.analysed, relevant: job.relevant, not_analysed: job.not_analysed } };
+      }
+      if (['failed', 'expired', 'cancelled'].includes(job.state)) throw new Error(job.error || `Sweep ${job.state}`);
+    }
   },
   async computePayment(finding: Finding, mode: 'demo' | 'live' = 'live'): Promise<PaymentResult> {
     if (!finding.date || !finding.debit) throw new Error('This finding does not contain enough dated amount evidence to calculate yet.');

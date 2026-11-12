@@ -18,6 +18,7 @@ from __future__ import annotations
 import base64
 import json
 import re
+import time
 import urllib.parse
 import urllib.request
 from datetime import datetime
@@ -60,10 +61,12 @@ DATE_RE = re.compile(
     re.IGNORECASE,
 )
 MAX_QUERY_LENGTH = 500
+MAX_FETCH_RESULTS = 5000
 DEFAULT_GMAIL_QUERY = (
     '(newer_than:2y (upi OR debit OR debited OR reversal OR refund OR failed OR '
-    'incomplete OR overdue OR invoice OR payment OR "cash not dispensed")) '
-    '-category:promotions -category:social -category:forums -category:spam'
+    'incomplete OR overdue OR invoice OR payment OR "cash not dispensed" OR '
+    'विफल OR रिफंड OR वापस OR भुगतान OR कटा OR फेल OR "पैसे वापस" OR '
+    'paisa OR paise OR wapas OR kata OR fail OR refund)) -category:spam'
 )
 
 KNOWN_BANKS = (
@@ -205,8 +208,7 @@ def parse_amount(text: str) -> int | None:
 
 def fetch_live_gmail(access_token: str, query: str, max_results: int = 50) -> list[dict[str, Any]]:
     """Query Gmail with bounded pagination and inspect each selected message in memory."""
-    if max_results > 100:
-        max_results = 100
+    max_results = min(max_results, MAX_FETCH_RESULTS)
     financial_query = (query or DEFAULT_GMAIL_QUERY).strip()
     if len(financial_query) > MAX_QUERY_LENGTH:
         raise GmailAccessError("Gmail search query is too long")
@@ -218,7 +220,7 @@ def fetch_live_gmail(access_token: str, query: str, max_results: int = 50) -> li
         while len(metadata) < max_results:
             params = {
                 "q": financial_query,
-                "maxResults": str(min(100, max_results - len(metadata))),
+                "maxResults": str(min(500, max_results - len(metadata))),
             }
             if page_token:
                 params["pageToken"] = page_token
@@ -227,8 +229,7 @@ def fetch_live_gmail(access_token: str, query: str, max_results: int = 50) -> li
                 + urllib.parse.urlencode(params)
             )
             req = urllib.request.Request(url, headers=headers)
-            with urllib.request.urlopen(req, timeout=12) as response:
-                data = json.loads(response.read().decode("utf-8"))
+            data = _gmail_json(req, timeout=12)
             metadata.extend(data.get("messages", []))
             page_token = data.get("nextPageToken")
             if not page_token or not data.get("messages"):
@@ -243,8 +244,7 @@ def fetch_live_gmail(access_token: str, query: str, max_results: int = 50) -> li
             )
             msg_req = urllib.request.Request(msg_url, headers=headers)
             try:
-                with urllib.request.urlopen(msg_req, timeout=8) as msg_res:
-                    msg_data = json.loads(msg_res.read().decode("utf-8"))
+                msg_data = _gmail_json(msg_req, timeout=8)
                 payload = msg_data.get("payload", {})
                 message_headers = {
                     h["name"].lower(): h["value"] for h in payload.get("headers", [])
@@ -270,6 +270,24 @@ def fetch_live_gmail(access_token: str, query: str, max_results: int = 50) -> li
         raise GmailAccessError(f"Google Gmail API returned {exc.code}: {detail[:240]}") from exc
     except Exception as exc:
         raise GmailAccessError("Google Gmail API could not be reached") from exc
+
+
+def _gmail_json(request: urllib.request.Request, *, timeout: float) -> dict[str, Any]:
+    """Read one Gmail response, respecting Retry-After for transient quota responses."""
+    for attempt in range(4):
+        try:
+            with urllib.request.urlopen(request, timeout=timeout) as response:
+                return json.loads(response.read().decode("utf-8"))
+        except HTTPError as exc:
+            if exc.code not in {429, 500, 502, 503, 504} or attempt == 3:
+                raise
+            retry_after = exc.headers.get("Retry-After", "")
+            try:
+                delay = min(float(retry_after), 8.0) if retry_after else 0.5 * (2**attempt)
+            except ValueError:
+                delay = 0.5 * (2**attempt)
+            time.sleep(max(0.0, delay))
+    raise GmailAccessError("Gmail request retry budget exhausted")
 
 
 def get_demo_email_corpus() -> list[dict[str, Any]]:

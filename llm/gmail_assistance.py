@@ -1,12 +1,14 @@
 from __future__ import annotations
 
+import hashlib
 import re
+import time
 from datetime import date
 from typing import Any
 
 from .client import LLMClient
 from .config import LLMSettings
-from .models import FieldStatus, LLMStatus
+from .models import FieldStatus, LLMStatus, Relevance
 from .payload import MessageInput, build_provider_payload
 from .redact import OAuthTokenDetected, redact_sensitive
 from .trust import FieldTrustTier, assign_tier, report_conflicts
@@ -15,6 +17,9 @@ from .verify import AmbiguousDateError, normalise_date, verify_quote
 _NUMERIC_DATE = re.compile(r"\b\d{1,2}[/-]\d{1,2}[/-]\d{2,4}\b")
 _TEXTUAL_DATE = re.compile(r"\b\d{1,2}[ -](?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*[ ,-]+\d{4}\b", re.I)
 _ISO_DATE = re.compile(r"\b20\d{2}-\d{2}-\d{2}\b")
+_OTP_ONLY = re.compile(r"\b(?:otp|one[- ]time password|verification code|security code)\b", re.I)
+_TRIAGE_CACHE: dict[str, tuple[float, Any]] = {}
+_TRIAGE_CACHE_TTL = 600.0
 
 
 def _safe_text(value: str) -> str:
@@ -94,10 +99,10 @@ def enrich_financial_emails(
     client: LLMClient | None,
     settings: LLMSettings,
 ) -> tuple[list[dict[str, Any]], str]:
-    """Attach advisory, quote-verified suggestions to prefiltered financial messages.
+    """Triage all non-OTP messages, then extract only relevant or uncertain ones.
 
-    Calls are sequential and strictly per message. Returned suggestions never alter
-    the deterministic emails, candidates, or calculator inputs.
+    AI output is advisory only. It never alters deterministic fields, candidates, or
+    calculator inputs. Bodies are included only after triage selects a message.
     """
     if client is None:
         return emails, LLMStatus.DISABLED.value
@@ -108,11 +113,56 @@ def enrich_financial_emails(
     sent = 0
     for email in emails:
         entry = dict(email)
-        if entry.get("status") == "noise" or sent >= settings.max_messages_per_sweep:
+        if sent >= settings.max_messages_per_sweep:
             enriched.append(entry)
             continue
         raw = by_id.get(str(entry.get("id", "")))
         if not raw:
+            enriched.append(entry)
+            continue
+        source_text = " ".join(str(raw.get(key, "")) for key in ("subject", "snippet", "body"))
+        if _OTP_ONLY.search(source_text) and not re.search(
+            r"\b(?:debit|debited|upi|refund|reversal|payment|invoice|overdue)\b", source_text, re.I
+        ):
+            enriched.append(entry)
+            continue
+        try:
+            triage_prepared = build_provider_payload(
+                MessageInput(
+                    message_id=str(raw.get("id", "")),
+                    sender=str(raw.get("sender", "")),
+                    subject=str(raw.get("subject", "")),
+                    snippet=str(raw.get("snippet", "")),
+                    body_text="",
+                    received_at=str(raw.get("date", "")) or None,
+                ),
+                settings,
+            )
+        except (OAuthTokenDetected, ValueError, TypeError):
+            status = LLMStatus.INVALID_OUTPUT.value
+            statuses.append(status)
+            entry["llm_assistance"] = {"status": status, "needs_review": True}
+            enriched.append(entry)
+            sent += 1
+            continue
+        sent += 1
+        triage = _cached_triage(client, triage_prepared.payload, triage_prepared.payload.model_dump_json())
+        if triage.llm_status != LLMStatus.OK or triage.result is None:
+            entry["llm_assistance"] = {"status": triage.llm_status.value, "needs_review": True}
+            statuses.append(triage.llm_status.value)
+            enriched.append(entry)
+            continue
+        triage_result = triage.result
+        if triage_result.relevance == Relevance.POSSIBLE_NOISE:
+            entry["llm_assistance"] = {
+                "status": LLMStatus.OK.value,
+                "relevance": triage_result.relevance.value,
+                "signal_type": triage_result.signal_type.value,
+                "needs_review": False,
+                "review_reasons": ["triage_not_relevant"],
+                "trust_tier": FieldTrustTier.T_B.value,
+            }
+            statuses.append(LLMStatus.OK.value)
             enriched.append(entry)
             continue
         try:
@@ -128,13 +178,10 @@ def enrich_financial_emails(
                 settings,
             )
         except (OAuthTokenDetected, ValueError, TypeError):
-            status = LLMStatus.INVALID_OUTPUT.value
-            statuses.append(status)
-            entry["llm_assistance"] = {"status": status, "needs_review": True}
+            entry["llm_assistance"] = {"status": LLMStatus.INVALID_OUTPUT.value, "needs_review": True}
+            statuses.append(LLMStatus.INVALID_OUTPUT.value)
             enriched.append(entry)
-            sent += 1
             continue
-        sent += 1
         response = client.extract(prepared.payload)
         status = response.llm_status.value
         statuses.append(status)
@@ -170,6 +217,20 @@ def enrich_financial_emails(
         enriched.append(entry)
     summary = next((status for status in statuses if status != LLMStatus.OK.value), LLMStatus.OK.value) if statuses else LLMStatus.OK.value
     return enriched, summary
+
+
+def _cached_triage(client: LLMClient, payload: Any, cache_text: str) -> Any:
+    key = hashlib.sha256(cache_text.encode("utf-8")).hexdigest()
+    now = time.monotonic()
+    cached = _TRIAGE_CACHE.get(key)
+    if cached and now - cached[0] < _TRIAGE_CACHE_TTL:
+        return cached[1]
+    result = client.triage(payload)
+    _TRIAGE_CACHE[key] = (now, result)
+    if len(_TRIAGE_CACHE) > 2048:
+        oldest = min(_TRIAGE_CACHE, key=lambda item: _TRIAGE_CACHE[item][0])
+        _TRIAGE_CACHE.pop(oldest, None)
+    return result
 
 
 def _safe_reasons(reasons: list[str]) -> list[str]:

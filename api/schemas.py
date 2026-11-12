@@ -41,7 +41,12 @@ class ClassifyResponse(BaseModel):
 
 class GmailScanRequest(BaseModel):
     query: str | None = None
-    max_results: int = Field(default=50, ge=1, le=100)
+    max_results: int = Field(default=50, ge=1, le=5000)
+
+
+class GmailSweepRequest(BaseModel):
+    query: str | None = None
+    max_results: int = Field(default=500, ge=1, le=5000)
 
 
 class IngestRequest(BaseModel):

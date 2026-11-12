@@ -21,3 +21,23 @@ services:
         sync: false
       - key: COOKIE_SECURE
         value: "true"
+      - key: LLM_ENABLED
+        value: "false"
+      - key: GROQ_API_KEY
+        sync: false
+      - key: GROQ_SPEND_CAP_USD
+        value: "0"
+      - key: LLM_MODEL_TRIAGE
+        value: "openai/gpt-oss-20b"
+      - key: LLM_MODEL_EXTRACT
+        value: "openai/gpt-oss-20b"
+      - key: LLM_MODEL_RECHECK
+        value: "openai/gpt-oss-20b"
+      - key: LLM_MAX_MESSAGES_PER_SWEEP
+        value: "100"
+      - key: SWEEP_MAX_LISTED
+        value: "5000"
+      - key: SWEEP_JOB_TTL_SECONDS
+        value: "3600"
+      - key: SWEEP_AUDIT_SAMPLE_RATE
+        value: "0.02"
