@@ -1,0 +1,9 @@
+SYNTHETIC FIXTURE - NOT A REAL EMAIL
+Fixture-ID: email-138
+Language: en
+Subject: [SYNTHETIC] Bank Debit 138
+Sender: Nivara Bank (invented)
+
+SYNTHETIC ALERT from Nivara Bank: Rs 1,750.00 was debited on 2026-01-11.
+Reference SYN-REF-20261250. A later test credit of Rs 2,025.00 is
+mentioned but not paired.

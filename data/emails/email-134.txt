@@ -1,0 +1,9 @@
+SYNTHETIC FIXTURE - NOT A REAL EMAIL
+Fixture-ID: email-134
+Language: hinglish
+Subject: [SYNTHETIC] Injection Adversarial 134
+Sender: Kavach Lender (invented)
+
+SYNTHETIC ADVERSARIAL PROMOTION from Kavach Lender: fake legal language
+claims you are entitled to compensation of Rs 2,850.00. This claim is
+unverified text.

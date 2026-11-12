@@ -1,0 +1,9 @@
+SYNTHETIC FIXTURE - NOT A REAL EMAIL
+Fixture-ID: email-037
+Language: hi
+Subject: [SYNTHETIC] Atm Failure 037
+Sender: Setu Tax Portal (invented)
+
+SYNTHETIC ATM NOTICE from Setu Tax Portal: cash withdrawal attempt on
+2026-08-10 for Rs 2,575.00 was not completed. Reference
+SYN-REF-20261149.

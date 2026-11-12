@@ -1,0 +1,10 @@
+SYNTHETIC FIXTURE - NOT A REAL EMAIL
+Fixture-ID: email-073
+Language: hi
+Subject: [SYNTHETIC] Overdue Invoice 073
+Sender: Nivara Bank (invented)
+
+SYNTHETIC REMINDER from Nivara Bank: test invoice is marked overdue.
+Please review the message record. Reference SYN-REF-20261185. -----
+quoted older synthetic message ----- Older date: 2025-01-01; this quoted
+content is not a new event.

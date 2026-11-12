@@ -1,0 +1,8 @@
+SYNTHETIC FIXTURE - NOT A REAL EMAIL
+Fixture-ID: email-125
+Language: hinglish
+Subject: [SYNTHETIC] Failed Payment 125
+Sender: Mitra Insure (invented)
+
+SYNTHETIC PAYMENT STATUS from Mitra Insure: payment of Rs 2,575.00 on
+2026-06-18 failed. Reference SYN-REF-20261237. No reversal is stated.

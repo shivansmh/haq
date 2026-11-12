@@ -1,0 +1,9 @@
+SYNTHETIC FIXTURE - NOT A REAL EMAIL
+Fixture-ID: email-053
+Language: hinglish
+Subject: [SYNTHETIC] Ambiguous Adversarial 053
+Sender: Nivara Bank (invented)
+
+SYNTHETIC REVIEW CASE from Nivara Bank: a message says 03/04/26 and
+refers to an amount without currency. It may mention SYN-REF-20261165,
+but context is unclear.

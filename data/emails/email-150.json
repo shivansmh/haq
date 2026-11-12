@@ -1,0 +1,36 @@
+{
+  "schema_version": "a4-label-v1",
+  "fixture_id": "email-150",
+  "synthetic": true,
+  "category": "reversal_refund",
+  "subcategory": null,
+  "language": "en",
+  "split": "unseen",
+  "template_id": "reversal_refund-template-unseen",
+  "events": [
+    {
+      "type": "reversal_or_refund",
+      "field_status": {
+        "amount": "present",
+        "date": "present",
+        "reference": "present",
+        "counterparty": "absent"
+      }
+    }
+  ],
+  "field_status": {
+    "amount": "present",
+    "date": "present",
+    "reference": "present",
+    "counterparty": "absent"
+  },
+  "expected_quotes": {
+    "amount": "Rs 2,850.00",
+    "date": "2026-04-03",
+    "reference": "SYN-REF-20261262"
+  },
+  "review_reasons": [
+    "quoted_older_message"
+  ],
+  "reviewer_initials": ""
+}

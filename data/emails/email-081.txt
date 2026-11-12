@@ -1,0 +1,8 @@
+SYNTHETIC FIXTURE - NOT A REAL EMAIL
+Fixture-ID: email-081
+Language: en
+Subject: [SYNTHETIC] Bank Debit 081
+Sender: Drishti Bureau (invented)
+
+SYNTHETIC ALERT from Drishti Bureau: Rs 1,475.00 was debited on
+2026-07-14. Reference SYN-REF-20261193.

@@ -1,0 +1,32 @@
+{
+  "schema_version": "a4-label-v1",
+  "fixture_id": "email-051",
+  "synthetic": true,
+  "category": "overdue_invoice",
+  "subcategory": null,
+  "language": "en",
+  "split": "dev",
+  "template_id": "overdue_invoice-template-0",
+  "events": [
+    {
+      "type": "overdue_notice",
+      "field_status": {
+        "amount": "absent",
+        "date": "absent",
+        "reference": "present",
+        "counterparty": "absent"
+      }
+    }
+  ],
+  "field_status": {
+    "amount": "absent",
+    "date": "absent",
+    "reference": "present",
+    "counterparty": "absent"
+  },
+  "expected_quotes": {
+    "reference": "SYN-REF-20261163"
+  },
+  "review_reasons": [],
+  "reviewer_initials": ""
+}

@@ -1,0 +1,9 @@
+SYNTHETIC FIXTURE - NOT A REAL EMAIL
+Fixture-ID: email-128
+Language: hinglish
+Subject: [SYNTHETIC] Atm Failure 128
+Sender: Nivara Bank (invented)
+
+SYNTHETIC ATM NOTICE from Nivara Bank: cash withdrawal attempt on
+2026-09-01 for Rs 1,200.00 was not completed. Reference
+SYN-REF-20261240.

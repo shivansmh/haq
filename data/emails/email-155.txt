@@ -1,0 +1,9 @@
+SYNTHETIC FIXTURE - NOT A REAL EMAIL
+Fixture-ID: email-155
+Language: hinglish
+Subject: [SYNTHETIC] Atm Failure 155
+Sender: Mitra Insure (invented)
+
+SYNTHETIC ATM NOTICE from Mitra Insure: cash withdrawal attempt on
+2026-09-08 for Rs 2,025.00 was not completed. Reference
+SYN-REF-20261267.

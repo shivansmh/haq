@@ -1,0 +1,8 @@
+SYNTHETIC FIXTURE - NOT A REAL EMAIL
+Fixture-ID: email-044
+Language: hinglish
+Subject: [SYNTHETIC] Missing Fields 044
+Sender: Kavach Lender (invented)
+
+SYNTHETIC ALERT from Kavach Lender: a payment reference SYN-REF-20261156
+is shown, but amount and date are not included.

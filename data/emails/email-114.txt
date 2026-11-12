@@ -1,0 +1,8 @@
+SYNTHETIC FIXTURE - NOT A REAL EMAIL
+Fixture-ID: email-114
+Language: en
+Subject: [SYNTHETIC] Bank Debit 114
+Sender: Kavach Lender (invented)
+
+SYNTHETIC ALERT from Kavach Lender: Rs 1,750.00 was debited on
+2026-04-07. Reference SYN-REF-20261226.

@@ -50,3 +50,11 @@ Open decisions are not silently resolved. Each convention must cite its source a
 - **Date ambiguity:** numeric dates with both day and month at or below 12 are rejected unless a known sender convention (`DMY` or `MDY`) is supplied. ISO and textual month forms remain unambiguous.
 - **Trust tiers:** T-A is deterministic, T-B is AI-suggested and text-verified, and T-C is explicitly user-confirmed. T-B values are rejected by the calculation input guard.
 - **Conflict handling:** deterministic/model disagreements produce the SOP JSON shape with `status=conflict` and `action=ask_user`; no side is selected silently.
+
+## 2026-11-12 — a4-prompts-fixtures
+
+- **Provider boundary:** A4 contains prompt text, a local category builder, a deterministic generator, labels, and tests only. No provider, tool, network, or live API call is made.
+- **Synthetic corpus:** all 155 fixtures are invented and marked synthetic. The corpus has 115 base fixtures plus 40 dedicated injection/adversarial fixtures. Sender organizations, references, codes, and amounts are generated placeholders and never copied from real inboxes.
+- **Prompt injection:** email content is delimited as data. Embedded instructions are ignored as instructions and surfaced through `review_reasons`; no email text can change the prompt contract.
+- **Splits:** 70 fixtures are dev, 45 are held-out, and 40 are unseen. The prompt files contain no fixture examples, so the prompt-example template set is empty and cannot overlap unseen templates.
+- **Labels:** each fixture has a JSON label with event list, field status, expected quotes, review reasons, split, template ID, and blank reviewer initials for independent human review.

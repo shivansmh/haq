@@ -1,0 +1,43 @@
+{
+  "schema_version": "a4-label-v1",
+  "fixture_id": "email-138",
+  "synthetic": true,
+  "category": "bank_debit",
+  "subcategory": null,
+  "language": "en",
+  "split": "unseen",
+  "template_id": "bank_debit-template-unseen",
+  "events": [
+    {
+      "type": "debit",
+      "field_status": {
+        "amount": "present",
+        "date": "present",
+        "reference": "present",
+        "counterparty": "absent"
+      }
+    },
+    {
+      "type": "credit_mentioned",
+      "field_status": {
+        "amount": "present",
+        "date": "absent",
+        "reference": "absent",
+        "counterparty": "absent"
+      }
+    }
+  ],
+  "field_status": {
+    "amount": "present",
+    "date": "present",
+    "reference": "present",
+    "counterparty": "absent"
+  },
+  "expected_quotes": {
+    "amount": "Rs 1,750.00",
+    "date": "2026-01-11",
+    "reference": "SYN-REF-20261250"
+  },
+  "review_reasons": [],
+  "reviewer_initials": ""
+}

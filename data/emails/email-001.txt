@@ -1,0 +1,9 @@
+SYNTHETIC FIXTURE - NOT A REAL EMAIL
+Fixture-ID: email-001
+Language: hi
+Subject: [SYNTHETIC] Ambiguous Adversarial 001
+Sender: Drishti Bureau (invented)
+
+SYNTHETIC REVIEW CASE from Drishti Bureau: a message says 03/04/26 and
+refers to an amount without currency. It may mention SYN-REF-20261113,
+but context is unclear.

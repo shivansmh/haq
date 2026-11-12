@@ -1,0 +1,8 @@
+SYNTHETIC FIXTURE - NOT A REAL EMAIL
+Fixture-ID: email-057
+Language: en
+Subject: [SYNTHETIC] Bank Debit 057
+Sender: Setu Tax Portal (invented)
+
+SYNTHETIC ALERT from Setu Tax Portal: Rs 1,475.00 was debited on
+2026-01-10. Reference SYN-REF-20261169.

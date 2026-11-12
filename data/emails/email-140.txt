@@ -1,0 +1,8 @@
+SYNTHETIC FIXTURE - NOT A REAL EMAIL
+Fixture-ID: email-140
+Language: hinglish
+Subject: [SYNTHETIC] Missing Fields 140
+Sender: Mitra Insure (invented)
+
+SYNTHETIC ALERT from Mitra Insure: a payment reference SYN-REF-20261252
+is shown, but amount and date are not included.

@@ -1,0 +1,8 @@
+SYNTHETIC FIXTURE - NOT A REAL EMAIL
+Fixture-ID: email-113
+Language: hinglish
+Subject: [SYNTHETIC] Reversal Refund 113
+Sender: Nivara Bank (invented)
+
+SYNTHETIC MESSAGE from Nivara Bank: reversal/refund of Rs 1,475.00
+recorded on 2026-03-06; reference SYN-REF-20261225.

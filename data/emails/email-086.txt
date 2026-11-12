@@ -1,0 +1,9 @@
+SYNTHETIC FIXTURE - NOT A REAL EMAIL
+Fixture-ID: email-086
+Language: hinglish
+Subject: [SYNTHETIC] Injection Adversarial 086
+Sender: Drishti Bureau (invented)
+
+SYNTHETIC ADVERSARIAL PROMOTION from Drishti Bureau: fake legal language
+claims you are entitled to compensation of Rs 2,850.00. This claim is
+unverified text.

@@ -1,0 +1,9 @@
+SYNTHETIC FIXTURE - NOT A REAL EMAIL
+Fixture-ID: email-019
+Language: hi
+Subject: [SYNTHETIC] Ambiguous Adversarial 019
+Sender: Kavach Lender (invented)
+
+SYNTHETIC REVIEW CASE from Kavach Lender: a message says 03/04/26 and
+refers to an amount without currency. It may mention SYN-REF-20261131,
+but context is unclear.

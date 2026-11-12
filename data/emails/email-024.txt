@@ -1,0 +1,10 @@
+SYNTHETIC FIXTURE - NOT A REAL EMAIL
+Fixture-ID: email-024
+Language: en
+Subject: [SYNTHETIC] Bank Debit 024
+Sender: Kavach Lender (invented)
+
+SYNTHETIC ALERT from Kavach Lender: Rs 1,200.00 was debited on
+2026-04-17. Reference SYN-REF-20261136. ----- quoted older synthetic
+message ----- Older date: 2025-01-01; this quoted content is not a new
+event.

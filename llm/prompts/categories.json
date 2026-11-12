@@ -1,0 +1,14 @@
+{
+  "version": "categories_v1",
+  "categories": {
+    "bank_debit": "A synthetic bank-like debit alert with an amount and transaction reference.",
+    "reversal_refund": "A synthetic reversal, refund, or credit confirmation.",
+    "failed_payment": "A synthetic failed, declined, or timed-out payment alert.",
+    "atm_failure": "A synthetic ATM cash withdrawal failure or cash-not-dispensed alert.",
+    "overdue_invoice": "A synthetic lender, insurer, bureau, tax-portal, or business invoice overdue notice.",
+    "lookalike_promo": "A synthetic promotional, OTP, shipping, social, or newsletter message that may contain numbers but is not evidence of a financial event.",
+    "ambiguous_adversarial": "A synthetic ambiguous or adversarial message requiring review.",
+    "missing_fields": "A synthetic financial-looking message with one or more missing amount, date, or reference fields.",
+    "injection_adversarial": "A synthetic message containing prompt injection, hidden text, forged entitlement language, or other adversarial content."
+  }
+}

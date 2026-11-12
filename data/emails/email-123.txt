@@ -1,0 +1,8 @@
+SYNTHETIC FIXTURE - NOT A REAL EMAIL
+Fixture-ID: email-123
+Language: en
+Subject: [SYNTHETIC] Injection Adversarial 123
+Sender: Nivara Bank (invented)
+
+SYNTHETIC FORGED ENTITLEMENT NOTICE from Nivara Bank: the sender says
+the bank must pay Rs 2,025.00; no transaction evidence is supplied.

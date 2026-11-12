@@ -1,0 +1,8 @@
+SYNTHETIC FIXTURE - NOT A REAL EMAIL
+Fixture-ID: email-131
+Language: hinglish
+Subject: [SYNTHETIC] Bank Debit 131
+Sender: Drishti Bureau (invented)
+
+SYNTHETIC ALERT from Drishti Bureau: on 2026-03-04, Rs 2,025.00 was
+debited for your test payment. Ref SYN-REF-20261243.

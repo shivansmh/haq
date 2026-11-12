@@ -1,0 +1,35 @@
+{
+  "schema_version": "a4-label-v1",
+  "fixture_id": "email-053",
+  "synthetic": true,
+  "category": "ambiguous_adversarial",
+  "subcategory": null,
+  "language": "hinglish",
+  "split": "dev",
+  "template_id": "ambiguous_adversarial-template-2",
+  "events": [
+    {
+      "type": "ambiguous",
+      "field_status": {
+        "amount": "absent",
+        "date": "ambiguous",
+        "reference": "ambiguous",
+        "counterparty": "absent"
+      }
+    }
+  ],
+  "field_status": {
+    "amount": "absent",
+    "date": "ambiguous",
+    "reference": "ambiguous",
+    "counterparty": "absent"
+  },
+  "expected_quotes": {
+    "date": "03/04/26",
+    "reference": "SYN-REF-20261165"
+  },
+  "review_reasons": [
+    "ambiguous_date_or_context"
+  ],
+  "reviewer_initials": ""
+}

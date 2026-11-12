@@ -1,0 +1,9 @@
+SYNTHETIC FIXTURE - NOT A REAL EMAIL
+Fixture-ID: email-142
+Language: hi
+Subject: [SYNTHETIC] Overdue Invoice 142
+Sender: Setu Tax Portal (invented)
+
+SYNTHETIC REMINDER from Setu Tax Portal: test invoice is marked overdue.
+Please review the message record. Reference SYN-REF-20261254. The notice
+mentions a previous date 2026-05-15, but no payable amount is stated.

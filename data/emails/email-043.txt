@@ -1,0 +1,8 @@
+SYNTHETIC FIXTURE - NOT A REAL EMAIL
+Fixture-ID: email-043
+Language: hi
+Subject: [SYNTHETIC] Lookalike Promo 043
+Sender: Nivara Bank (invented)
+
+SYNTHETIC promotion from Nivara Bank: explore a fictional offer today.
+Listed price Rs 2,025.00; no debit or payment event is stated.

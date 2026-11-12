@@ -1,0 +1,8 @@
+SYNTHETIC FIXTURE - NOT A REAL EMAIL
+Fixture-ID: email-067
+Language: hi
+Subject: [SYNTHETIC] Lookalike Promo 067
+Sender: Setu Tax Portal (invented)
+
+SYNTHETIC newsletter from Setu Tax Portal: save 24% on a fictional plan.
+This is promotional content, not a transaction.

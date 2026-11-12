@@ -1,0 +1,8 @@
+SYNTHETIC FIXTURE - NOT A REAL EMAIL
+Fixture-ID: email-116
+Language: hinglish
+Subject: [SYNTHETIC] Reversal Refund 116
+Sender: Drishti Bureau (invented)
+
+SYNTHETIC MESSAGE from Drishti Bureau: reversal/refund of Rs 2,300.00
+recorded on 2026-06-09; reference SYN-REF-20261228.

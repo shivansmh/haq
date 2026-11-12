@@ -1,0 +1,32 @@
+{
+  "schema_version": "a4-label-v1",
+  "fixture_id": "email-038",
+  "synthetic": true,
+  "category": "lookalike_promo",
+  "subcategory": "promotion",
+  "language": "hinglish",
+  "split": "dev",
+  "template_id": "lookalike_promo-template-2",
+  "events": [
+    {
+      "type": "none",
+      "field_status": {
+        "amount": "absent",
+        "date": "absent",
+        "reference": "absent",
+        "counterparty": "absent"
+      }
+    }
+  ],
+  "field_status": {
+    "amount": "absent",
+    "date": "absent",
+    "reference": "absent",
+    "counterparty": "absent"
+  },
+  "expected_quotes": {},
+  "review_reasons": [
+    "lookalike_nonfinancial_message"
+  ],
+  "reviewer_initials": ""
+}

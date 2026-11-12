@@ -1,0 +1,10 @@
+SYNTHETIC FIXTURE - NOT A REAL EMAIL
+Fixture-ID: email-052
+Language: hi
+Subject: [SYNTHETIC] Failed Payment 052
+Sender: Setu Tax Portal (invented)
+
+SYNTHETIC PAYMENT STATUS from Setu Tax Portal: payment of Rs 2,300.00 on
+2026-05-05 timed out. Reference SYN-REF-20261164. No reversal is stated.
+----- quoted older synthetic message ----- Older date: 2025-01-01; this
+quoted content is not a new event.

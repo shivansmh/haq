@@ -1,0 +1,8 @@
+SYNTHETIC FIXTURE - NOT A REAL EMAIL
+Fixture-ID: email-120
+Language: en
+Subject: [SYNTHETIC] Missing Fields 120
+Sender: Mitra Insure (invented)
+
+SYNTHETIC ALERT from Mitra Insure: a debit event was recorded on
+2026-01-13. Amount and reference are not included.

@@ -1,0 +1,8 @@
+SYNTHETIC FIXTURE - NOT A REAL EMAIL
+Fixture-ID: email-100
+Language: hi
+Subject: [SYNTHETIC] Reversal Refund 100
+Sender: Mitra Insure (invented)
+
+SYNTHETIC MESSAGE from Mitra Insure: reversal/refund of Rs 2,300.00
+recorded on 2026-08-13; reference SYN-REF-20261212.

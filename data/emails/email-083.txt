@@ -1,0 +1,9 @@
+SYNTHETIC FIXTURE - NOT A REAL EMAIL
+Fixture-ID: email-083
+Language: hinglish
+Subject: [SYNTHETIC] Bank Debit 083
+Sender: Nivara Bank (invented)
+
+SYNTHETIC ALERT from Nivara Bank: on 2026-09-16, Rs 2,025.00 was debited
+for your test payment. Ref SYN-REF-20261195. A later test credit of Rs
+2,300.00 is mentioned but not paired.

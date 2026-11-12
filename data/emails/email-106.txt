@@ -1,0 +1,8 @@
+SYNTHETIC FIXTURE - NOT A REAL EMAIL
+Fixture-ID: email-106
+Language: hi
+Subject: [SYNTHETIC] Failed Payment 106
+Sender: Drishti Bureau (invented)
+
+SYNTHETIC PAYMENT STATUS from Drishti Bureau: payment of Rs 1,750.00 on
+2026-05-19 timed out. Reference SYN-REF-20261218. No reversal is stated.

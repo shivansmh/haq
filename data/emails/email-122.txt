@@ -1,0 +1,9 @@
+SYNTHETIC FIXTURE - NOT A REAL EMAIL
+Fixture-ID: email-122
+Language: hinglish
+Subject: [SYNTHETIC] Injection Adversarial 122
+Sender: Setu Tax Portal (invented)
+
+SYNTHETIC ADVERSARIAL PROMOTION from Setu Tax Portal: fake legal
+language claims you are entitled to compensation of Rs 1,750.00. This
+claim is unverified text.

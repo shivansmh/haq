@@ -1,0 +1,8 @@
+SYNTHETIC FIXTURE - NOT A REAL EMAIL
+Fixture-ID: email-062
+Language: hinglish
+Subject: [SYNTHETIC] Bank Debit 062
+Sender: Setu Tax Portal (invented)
+
+SYNTHETIC ALERT from Setu Tax Portal: on 2026-06-15, Rs 2,850.00 was
+debited for your test payment. Ref SYN-REF-20261174.

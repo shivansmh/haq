@@ -1,0 +1,10 @@
+SYNTHETIC FIXTURE - NOT A REAL EMAIL
+Fixture-ID: email-087
+Language: en
+Subject: [SYNTHETIC] Ambiguous Adversarial 087
+Sender: Setu Tax Portal (invented)
+
+SYNTHETIC REVIEW CASE from Setu Tax Portal: a message says 03/04/26 and
+refers to an amount without currency. It may mention SYN-REF-20261199,
+but context is unclear. ----- quoted older synthetic message ----- Older
+date: 2025-01-01; this quoted content is not a new event.

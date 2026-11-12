@@ -1,0 +1,8 @@
+SYNTHETIC FIXTURE - NOT A REAL EMAIL
+Fixture-ID: email-097
+Language: hi
+Subject: [SYNTHETIC] Bank Debit 097
+Sender: Setu Tax Portal (invented)
+
+SYNTHETIC NOTICE: Setu Tax Portal: 2026-05-10 ko aapke payment me Rs
+1,475.00 debit hua. Reference SYN-REF-20261209.

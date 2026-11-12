@@ -1,0 +1,9 @@
+SYNTHETIC FIXTURE - NOT A REAL EMAIL
+Fixture-ID: email-152
+Language: hinglish
+Subject: [SYNTHETIC] Ambiguous Adversarial 152
+Sender: Setu Tax Portal (invented)
+
+SYNTHETIC REVIEW CASE from Setu Tax Portal: a message says 03/04/26 and
+refers to an amount without currency. It may mention SYN-REF-20261264,
+but context is unclear.

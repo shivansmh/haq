@@ -1,0 +1,34 @@
+{
+  "schema_version": "a4-label-v1",
+  "fixture_id": "email-014",
+  "synthetic": true,
+  "category": "failed_payment",
+  "subcategory": null,
+  "language": "hinglish",
+  "split": "dev",
+  "template_id": "failed_payment-template-2",
+  "events": [
+    {
+      "type": "failed_payment",
+      "field_status": {
+        "amount": "present",
+        "date": "present",
+        "reference": "present",
+        "counterparty": "absent"
+      }
+    }
+  ],
+  "field_status": {
+    "amount": "present",
+    "date": "present",
+    "reference": "present",
+    "counterparty": "absent"
+  },
+  "expected_quotes": {
+    "amount": "Rs 2,850.00",
+    "date": "2026-03-07",
+    "reference": "SYN-REF-20261126"
+  },
+  "review_reasons": [],
+  "reviewer_initials": ""
+}

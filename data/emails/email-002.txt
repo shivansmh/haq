@@ -1,0 +1,8 @@
+SYNTHETIC FIXTURE - NOT A REAL EMAIL
+Fixture-ID: email-002
+Language: hinglish
+Subject: [SYNTHETIC] Reversal Refund 002
+Sender: Setu Tax Portal (invented)
+
+SYNTHETIC MESSAGE from Setu Tax Portal: reversal/refund of Rs 1,750.00
+recorded on 2026-09-15; reference SYN-REF-20261114.

@@ -1,0 +1,36 @@
+{
+  "schema_version": "a4-label-v1",
+  "fixture_id": "email-003",
+  "synthetic": true,
+  "category": "atm_failure",
+  "subcategory": null,
+  "language": "en",
+  "split": "dev",
+  "template_id": "atm_failure-template-0",
+  "events": [
+    {
+      "type": "atm_failure",
+      "field_status": {
+        "amount": "present",
+        "date": "present",
+        "reference": "present",
+        "counterparty": "absent"
+      }
+    }
+  ],
+  "field_status": {
+    "amount": "present",
+    "date": "present",
+    "reference": "present",
+    "counterparty": "absent"
+  },
+  "expected_quotes": {
+    "amount": "Rs 2,025.00",
+    "date": "2026-01-16",
+    "reference": "SYN-REF-20261115"
+  },
+  "review_reasons": [
+    "quoted_older_message"
+  ],
+  "reviewer_initials": ""
+}

@@ -1,0 +1,8 @@
+SYNTHETIC FIXTURE - NOT A REAL EMAIL
+Fixture-ID: email-110
+Language: hinglish
+Subject: [SYNTHETIC] Lookalike Promo 110
+Sender: Mitra Insure (invented)
+
+SYNTHETIC parcel update: package TEST-PARCEL-20261222 is moving.
+Estimated window 2026-09-03. No payment event is shown.

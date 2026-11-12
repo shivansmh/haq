@@ -1,0 +1,8 @@
+SYNTHETIC FIXTURE - NOT A REAL EMAIL
+Fixture-ID: email-059
+Language: hinglish
+Subject: [SYNTHETIC] Lookalike Promo 059
+Sender: Kavach Lender (invented)
+
+SYNTHETIC Kavach Lender security message: your one-time code is
+TEST-CODE-20261171. It expires soon. Never share it.

@@ -1,0 +1,8 @@
+SYNTHETIC FIXTURE - NOT A REAL EMAIL
+Fixture-ID: email-029
+Language: hinglish
+Subject: [SYNTHETIC] Reversal Refund 029
+Sender: Kavach Lender (invented)
+
+SYNTHETIC MESSAGE from Kavach Lender: reversal/refund of Rs 2,575.00
+recorded on 2026-09-02; reference SYN-REF-20261141.

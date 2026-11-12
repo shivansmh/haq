@@ -1,0 +1,8 @@
+SYNTHETIC FIXTURE - NOT A REAL EMAIL
+Fixture-ID: email-069
+Language: en
+Subject: [SYNTHETIC] Bank Debit 069
+Sender: Kavach Lender (invented)
+
+SYNTHETIC ALERT from Kavach Lender: Rs 2,575.00 was debited on
+2026-04-02. Reference SYN-REF-20261181.

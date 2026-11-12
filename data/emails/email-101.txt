@@ -1,0 +1,10 @@
+SYNTHETIC FIXTURE - NOT A REAL EMAIL
+Fixture-ID: email-101
+Language: hinglish
+Subject: [SYNTHETIC] Failed Payment 101
+Sender: Drishti Bureau (invented)
+
+SYNTHETIC PAYMENT STATUS from Drishti Bureau: payment of Rs 2,575.00 on
+2026-09-14 failed. Reference SYN-REF-20261213. No reversal is stated.
+----- quoted older synthetic message ----- Older date: 2025-01-01; this
+quoted content is not a new event.

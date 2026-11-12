@@ -1,0 +1,8 @@
+SYNTHETIC FIXTURE - NOT A REAL EMAIL
+Fixture-ID: email-085
+Language: hi
+Subject: [SYNTHETIC] Bank Debit 085
+Sender: Mitra Insure (invented)
+
+SYNTHETIC NOTICE: Mitra Insure: 2026-02-18 ko aapke payment me Rs
+2,575.00 debit hua. Reference SYN-REF-20261197.

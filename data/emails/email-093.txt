@@ -1,0 +1,8 @@
+SYNTHETIC FIXTURE - NOT A REAL EMAIL
+Fixture-ID: email-093
+Language: en
+Subject: [SYNTHETIC] Missing Fields 093
+Sender: Nivara Bank (invented)
+
+SYNTHETIC ALERT from Nivara Bank: a debit event was recorded on
+2026-01-06. Amount and reference are not included.

@@ -1,0 +1,8 @@
+SYNTHETIC FIXTURE - NOT A REAL EMAIL
+Fixture-ID: email-148
+Language: hi
+Subject: [SYNTHETIC] Missing Fields 148
+Sender: Nivara Bank (invented)
+
+SYNTHETIC ALERT from Nivara Bank: an amount of Rs 2,300.00 appears, but
+the date and reference are not included.

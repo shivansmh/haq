@@ -1,0 +1,8 @@
+SYNTHETIC FIXTURE - NOT A REAL EMAIL
+Fixture-ID: email-034
+Language: hi
+Subject: [SYNTHETIC] Bank Debit 034
+Sender: Kavach Lender (invented)
+
+SYNTHETIC NOTICE: Kavach Lender: 2026-05-07 ko aapke payment me Rs
+1,750.00 debit hua. Reference SYN-REF-20261146.

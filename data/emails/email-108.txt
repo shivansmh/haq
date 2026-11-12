@@ -1,0 +1,10 @@
+SYNTHETIC FIXTURE - NOT A REAL EMAIL
+Fixture-ID: email-108
+Language: en
+Subject: [SYNTHETIC] Ambiguous Adversarial 108
+Sender: Nivara Bank (invented)
+
+SYNTHETIC REVIEW CASE from Nivara Bank: a message says 03/04/26 and
+refers to an amount without currency. It may mention SYN-REF-20261220,
+but context is unclear. ----- quoted older synthetic message ----- Older
+date: 2025-01-01; this quoted content is not a new event.

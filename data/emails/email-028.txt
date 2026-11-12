@@ -1,0 +1,9 @@
+SYNTHETIC FIXTURE - NOT A REAL EMAIL
+Fixture-ID: email-028
+Language: hi
+Subject: [SYNTHETIC] Bank Debit 028
+Sender: Nivara Bank (invented)
+
+SYNTHETIC NOTICE: Nivara Bank: 2026-08-01 ko aapke payment me Rs
+2,300.00 debit hua. Reference SYN-REF-20261140. A later test credit of
+Rs 2,575.00 is mentioned but not paired.

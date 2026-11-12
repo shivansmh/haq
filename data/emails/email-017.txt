@@ -1,0 +1,10 @@
+SYNTHETIC FIXTURE - NOT A REAL EMAIL
+Fixture-ID: email-017
+Language: hinglish
+Subject: [SYNTHETIC] Failed Payment 017
+Sender: Setu Tax Portal (invented)
+
+SYNTHETIC PAYMENT STATUS from Setu Tax Portal: payment of Rs 1,475.00 on
+2026-06-10 failed. Reference SYN-REF-20261129. No reversal is stated.
+----- quoted older synthetic message ----- Older date: 2025-01-01; this
+quoted content is not a new event.

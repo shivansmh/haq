@@ -1,0 +1,10 @@
+SYNTHETIC FIXTURE - NOT A REAL EMAIL
+Fixture-ID: email-066
+Language: en
+Subject: [SYNTHETIC] Bank Debit 066
+Sender: Drishti Bureau (invented)
+
+SYNTHETIC ALERT from Drishti Bureau: Rs 1,750.00 was debited on
+2026-01-19. Reference SYN-REF-20261178. ----- quoted older synthetic
+message ----- Older date: 2025-01-01; this quoted content is not a new
+event.

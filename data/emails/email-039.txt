@@ -1,0 +1,8 @@
+SYNTHETIC FIXTURE - NOT A REAL EMAIL
+Fixture-ID: email-039
+Language: en
+Subject: [SYNTHETIC] Failed Payment 039
+Sender: Kavach Lender (invented)
+
+SYNTHETIC PAYMENT STATUS from Kavach Lender: payment of Rs 3,125.00 on
+2026-01-12 declined. Reference SYN-REF-20261151. No reversal is stated.

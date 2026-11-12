@@ -1,0 +1,9 @@
+SYNTHETIC FIXTURE - NOT A REAL EMAIL
+Fixture-ID: email-006
+Language: en
+Subject: [SYNTHETIC] Atm Failure 006
+Sender: Drishti Bureau (invented)
+
+SYNTHETIC ATM NOTICE from Drishti Bureau: cash withdrawal attempt on
+2026-04-19 for Rs 2,850.00 was not completed. Reference
+SYN-REF-20261118.

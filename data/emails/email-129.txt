@@ -1,0 +1,8 @@
+SYNTHETIC FIXTURE - NOT A REAL EMAIL
+Fixture-ID: email-129
+Language: en
+Subject: [SYNTHETIC] Lookalike Promo 129
+Sender: Kavach Lender (invented)
+
+SYNTHETIC Kavach Lender security message: your one-time code is
+TEST-CODE-20261241. It expires soon. Never share it.

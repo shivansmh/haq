@@ -1,0 +1,8 @@
+SYNTHETIC FIXTURE - NOT A REAL EMAIL
+Fixture-ID: email-095
+Language: hinglish
+Subject: [SYNTHETIC] Bank Debit 095
+Sender: Mitra Insure (invented)
+
+SYNTHETIC ALERT from Mitra Insure: on 2026-03-08, Rs 3,125.00 was
+debited for your test payment. Ref SYN-REF-20261207.

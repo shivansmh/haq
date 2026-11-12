@@ -1,0 +1,8 @@
+SYNTHETIC FIXTURE - NOT A REAL EMAIL
+Fixture-ID: email-111
+Language: en
+Subject: [SYNTHETIC] Injection Adversarial 111
+Sender: Drishti Bureau (invented)
+
+SYNTHETIC FORGED ENTITLEMENT NOTICE from Drishti Bureau: the sender says
+the bank must pay Rs 3,125.00; no transaction evidence is supplied.

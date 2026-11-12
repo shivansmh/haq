@@ -1,0 +1,8 @@
+SYNTHETIC FIXTURE - NOT A REAL EMAIL
+Fixture-ID: email-096
+Language: en
+Subject: [SYNTHETIC] Lookalike Promo 096
+Sender: Drishti Bureau (invented)
+
+SYNTHETIC social digest: you have 3 new updates and 1 reactions. Open
+the test feed.

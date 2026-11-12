@@ -1,0 +1,8 @@
+SYNTHETIC FIXTURE - NOT A REAL EMAIL
+Fixture-ID: email-064
+Language: hi
+Subject: [SYNTHETIC] Missing Fields 064
+Sender: Kavach Lender (invented)
+
+SYNTHETIC ALERT from Kavach Lender: an amount of Rs 1,200.00 appears,
+but the date and reference are not included.

@@ -1,0 +1,9 @@
+SYNTHETIC FIXTURE - NOT A REAL EMAIL
+Fixture-ID: email-046
+Language: hi
+Subject: [SYNTHETIC] Overdue Invoice 046
+Sender: Drishti Bureau (invented)
+
+SYNTHETIC REMINDER from Drishti Bureau: test invoice is marked overdue.
+Please review the message record. Reference SYN-REF-20261158. The notice
+mentions a previous date 2026-08-19, but no payable amount is stated.

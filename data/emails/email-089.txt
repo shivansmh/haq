@@ -1,0 +1,8 @@
+SYNTHETIC FIXTURE - NOT A REAL EMAIL
+Fixture-ID: email-089
+Language: hinglish
+Subject: [SYNTHETIC] Overdue Invoice 089
+Sender: Kavach Lender (invented)
+
+SYNTHETIC REMINDER from Kavach Lender: test invoice is marked overdue.
+Please review the message record. Reference SYN-REF-20261201.
