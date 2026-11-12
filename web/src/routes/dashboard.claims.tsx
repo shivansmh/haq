@@ -7,10 +7,16 @@ import { ledgerRecords, ledgerSummary } from "@/lib/haq-types";
 export const Route = createFileRoute("/dashboard/claims")({
   head: () => ({
     meta: [
-      { title: "My claims — Haq" },
-      { name: "description", content: "Review possible claims found by your Haq sweep." },
-      { property: "og:title", content: "My claims — Haq" },
-      { property: "og:description", content: "Review possible claims found by your Haq sweep." },
+      { title: "Records & claims — Haq" },
+      {
+        name: "description",
+        content: "Review tracked money records, evidence, and claim drafts found by Haq.",
+      },
+      { property: "og:title", content: "Records & claims — Haq" },
+      {
+        property: "og:description",
+        content: "Review tracked money records, evidence, and claim drafts found by Haq.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
     ],
@@ -26,7 +32,7 @@ function Claims() {
   const summary = ledgerSummary(result);
   return (
     <div className="mx-auto max-w-4xl">
-      <h1 className="font-display text-5xl">My claims</h1>
+      <h1 className="font-display text-5xl">Records & claims</h1>
       {!records.length && !cases.length ? (
         <p className="mt-6 text-muted-foreground">
           No claims yet.{" "}

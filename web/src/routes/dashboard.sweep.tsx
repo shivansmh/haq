@@ -244,7 +244,8 @@ function SweepPage() {
         <h2 className="mt-10 text-lg font-semibold">Flagged records</h2>
         <p className="mt-1 text-sm text-muted-foreground">
           One record per transaction or invoice. Related emails are grouped, duplicates are marked,
-          and each record tracks whether the money came back.
+          and each record tracks whether the money came back. Expand a record to review its evidence
+          and next steps.
         </p>
         <div className="mt-4 space-y-3">
           {records.map((record) => (
