@@ -9,6 +9,8 @@ export type SweepEmail = {
   extractedAmount?: number;
   extractedChannel?: string;
   extractedRef?: string;
+  signalKind?: string;
+  signalReasons?: string[];
   llm_assistance?: {
     status: 'disabled' | 'unavailable' | 'timeout' | 'invalid_output' | 'ok';
     relevance?: string;
@@ -32,6 +34,8 @@ export type Finding = {
   ref: string | null;
   parse_confidence: number;
   evidence_status?: string;
+  reversal_seen?: boolean;
+  related_sources?: Array<{ sender: string; subject: string; snippet: string }>;
   email_source?: { sender: string; subject: string; snippet: string };
 };
 
@@ -56,6 +60,8 @@ export type SweepJob = {
   analysed: number;
   relevant: number;
   not_analysed: number;
+  stage?: string;
+  truncated?: boolean;
   elapsed_seconds: number;
   result?: SweepResult;
   error?: string | null;
@@ -111,7 +117,7 @@ export const api = {
       await new Promise((resolve) => setTimeout(resolve, 350));
       const job = await request<SweepJob>(`/v1/gmail/sweeps/${started.job_id}`);
       const percent = Math.min(95, job.listed ? Math.round((job.analysed / job.listed) * 90) + 5 : 10);
-      onProgress?.(`Scanned ${job.listed} · triaged ${job.triaged} · analysed ${job.analysed}`, percent);
+      onProgress?.(`${job.stage || 'Scanning'} · ${job.listed} found · ${job.triaged} headers read · ${job.analysed} resolved`, percent);
       if (job.state === 'done' && job.result) {
         onProgress?.('Building a source-backed review', 100);
         return { ...job.result, coverage: { listed: job.listed, triaged: job.triaged, analysed: job.analysed, relevant: job.relevant, not_analysed: job.not_analysed } };

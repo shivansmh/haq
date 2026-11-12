@@ -287,21 +287,32 @@ def gmail_sweep_start(request: Request, payload: GmailSweepRequest) -> dict[str,
     llm_client, llm_settings = _gmail_llm_runtime()
 
     def worker(job: SweepJob) -> dict[str, Any]:
+        def on_progress(**counts: Any) -> None:
+            for name in ("listed", "triaged", "analysed", "stage", "truncated"):
+                if name in counts:
+                    setattr(job, name, counts[name])
+            job.updated_at = time.time()
+
+        job.stage = "listing"
         result = search_gmail(
             access_token,
             payload.query or "",
             payload.max_results,
             llm_client=llm_client,
             llm_settings=llm_settings,
+            progress=on_progress,
+            should_cancel=job.cancel_event.is_set,
         )
-        job.listed = int(result.get("emails_scanned", 0))
-        job.triaged = sum("llm_assistance" in email for email in result.get("emails", []))
-        job.analysed = sum(
-            email.get("llm_assistance", {}).get("status") == "ok"
-            for email in result.get("emails", [])
-        )
+        emails = result.get("emails", [])
+        job.listed = job.triaged = job.analysed = int(result.get("emails_scanned", 0))
         job.relevant = int(result.get("financial_alerts_found", 0))
-        job.not_analysed = max(0, payload.max_results - job.analysed)
+        # Honest coverage: only flagged messages the AI cap skipped, never "max_results - analysed".
+        job.not_analysed = (
+            sum(email["status"] != "noise" and "llm_assistance" not in email for email in emails)
+            if llm_client is not None
+            else 0
+        )
+        job.stage = "done"
         job.updated_at = time.time()
         return result
 

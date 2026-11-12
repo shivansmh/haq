@@ -113,6 +113,9 @@ def enrich_financial_emails(
     sent = 0
     for email in emails:
         entry = dict(email)
+        if entry.get("status") == "noise":
+            enriched.append(entry)  # already filtered; do not spend the AI cap on it
+            continue
         if sent >= settings.max_messages_per_sweep:
             enriched.append(entry)
             continue

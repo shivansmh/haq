@@ -21,7 +21,9 @@ import re
 import time
 import urllib.parse
 import urllib.request
-from datetime import datetime
+from collections.abc import Callable
+from concurrent.futures import ThreadPoolExecutor
+from datetime import date, datetime
 from email.utils import parsedate_to_datetime
 from typing import Any
 from urllib.error import HTTPError
@@ -30,6 +32,13 @@ from llm.client import LLMClient
 from llm.config import LLMSettings
 from llm.gmail_assistance import enrich_financial_emails
 from llm.redact import OAuthTokenDetected, redact_sensitive
+
+from .upi_signals import (
+    classify_message,
+    classify_sender,
+    looks_payment_related,
+)
+from .upi_signals import parse_amount as _parse_amount
 
 GOOGLE_AUTH_ENDPOINT = "https://accounts.google.com/o/oauth2/v2/auth"
 GOOGLE_TOKEN_ENDPOINT = "https://oauth2.googleapis.com/token"
@@ -40,21 +49,6 @@ GMAIL_SCOPE = "https://www.googleapis.com/auth/gmail.readonly"
 class GmailAccessError(RuntimeError):
     """Raised when Google refuses or cannot complete a Gmail API request."""
 
-# Regex patterns for Indian financial entities
-AMOUNT_RE = re.compile(r"(?:₹|rs\.?|inr)\s*([\d,]+(?:\.\d{1,2})?)", re.IGNORECASE)
-REF_RE = re.compile(
-    r"(?:rrn|utr|ref(?:erence)?|txn\s*(?:id)?|invoice)[\s:#-]*([A-Za-z0-9_-]{6,18})",
-    re.IGNORECASE,
-)
-UPI_12DIGIT_RE = re.compile(r"\b(\d{12})\b")
-OTP_RE = re.compile(
-    r"\b(otp|one[-\s]time[-\s]password|verification code|security code)\b",
-    re.IGNORECASE,
-)
-PROMO_RE = re.compile(
-    r"\b(flat \d+% off|sale|deal|discount|coupon|cashback offer|subscribe|newsletter|unlocked)\b",
-    re.IGNORECASE,
-)
 DATE_RE = re.compile(
     r"\b(\d{1,2})[\s/-]+(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)"
     r"[a-z]*[\s,-]+(20\d{2})\b",
@@ -62,30 +56,22 @@ DATE_RE = re.compile(
 )
 MAX_QUERY_LENGTH = 500
 MAX_FETCH_RESULTS = 5000
+GMAIL_WORKERS = 6  # parallel message reads; well inside Gmail's per-user quota
+REVERSAL_MATCH_WINDOW_DAYS = 30
+
+# Narrow server-side query: payment wording only, last 12 months, and known developer or
+# social senders excluded so Gmail never even returns them. Looser wording ("failed",
+# "payment", "invoice") on its own is what pulled GitHub CI mail into the first sweep.
 DEFAULT_GMAIL_QUERY = (
-    '(newer_than:2y (upi OR debit OR debited OR reversal OR refund OR failed OR '
-    'incomplete OR overdue OR invoice OR payment OR "cash not dispensed" OR '
-    'विफल OR रिफंड OR वापस OR भुगतान OR कटा OR फेल OR "पैसे वापस" OR '
-    'paisa OR paise OR wapas OR kata OR fail OR refund)) -category:spam'
+    "newer_than:365d -category:promotions -category:social -category:forums "
+    "-from:github.com -from:gitlab.com -from:linkedin.com -from:vercel.com -from:render.com "
+    '(upi OR "payment failed" OR "transaction failed" OR "payment unsuccessful" OR debited '
+    'OR reversal OR "refund initiated" OR "order cancelled" OR "order canceled" '
+    'OR "has been cancelled" OR "could not be processed" OR "cash not dispensed" '
+    "OR overdue OR विफल OR रिफंड OR रद्द)"
 )
 
-KNOWN_BANKS = (
-    "hdfc",
-    "sbi",
-    "icici",
-    "axis",
-    "kotak",
-    "pnb",
-    "bob",
-    "phonepe",
-    "paytm",
-    "gpay",
-    "cred",
-    "swiggy",
-    "zomato",
-    "amazon",
-    "razorpay",
-)
+ProgressFn = Callable[..., None]
 
 
 def get_google_auth_url(client_id: str, redirect_uri: str, state: str) -> str:
@@ -197,77 +183,146 @@ def parse_message_date(value: str, body: str = "") -> str | None:
 
 
 def parse_amount(text: str) -> int | None:
-    match = AMOUNT_RE.search(text)
-    if not match:
-        return None
-    try:
-        return round(float(match.group(1).replace(",", "")) * 100)
-    except ValueError:
-        return None
+    return _parse_amount(text)
 
 
-def fetch_live_gmail(access_token: str, query: str, max_results: int = 50) -> list[dict[str, Any]]:
-    """Query Gmail with bounded pagination and inspect each selected message in memory."""
+def _list_message_ids(
+    headers: dict[str, str], query: str, max_results: int, report: ProgressFn, cancelled: Callable[[], bool]
+) -> list[dict[str, Any]]:
+    found: list[dict[str, Any]] = []
+    page_token: str | None = None
+    while len(found) < max_results and not cancelled():
+        params = {"q": query, "maxResults": str(min(500, max_results - len(found)))}
+        if page_token:
+            params["pageToken"] = page_token
+        url = "https://gmail.googleapis.com/gmail/v1/users/me/messages?" + urllib.parse.urlencode(params)
+        data = _gmail_json(urllib.request.Request(url, headers=headers), timeout=12)
+        found.extend(data.get("messages", []))
+        report(listed=len(found), stage="listing")
+        page_token = data.get("nextPageToken")
+        if not page_token or not data.get("messages"):
+            break
+    return found[:max_results]
+
+
+def _get_message(headers: dict[str, str], msg_id: str, fmt: str) -> dict[str, Any]:
+    base = f"https://gmail.googleapis.com/gmail/v1/users/me/messages/{urllib.parse.quote(msg_id)}"
+    if fmt == "metadata":
+        base += "?format=metadata&metadataHeaders=From&metadataHeaders=Subject&metadataHeaders=Date"
+    else:
+        base += "?format=full"
+    return _gmail_json(urllib.request.Request(base, headers=headers), timeout=8)
+
+
+def _to_record(msg_id: str, msg_data: dict[str, Any], body_text: str = "") -> dict[str, Any]:
+    payload = msg_data.get("payload", {})
+    message_headers = {h["name"].lower(): h["value"] for h in payload.get("headers", [])}
+    return {
+        "id": msg_id,
+        "sender": message_headers.get("from", "Unknown Sender"),
+        "subject": message_headers.get("subject", "No Subject"),
+        "date": message_headers.get("date", ""),
+        "snippet": msg_data.get("snippet", "") or body_text[:240],
+        "body": body_text,
+        "is_real": True,
+    }
+
+
+def _read_parallel(
+    fetch: Callable[[Any], dict[str, Any]],
+    items: list[Any],
+    on_done: Callable[[], None],
+    cancelled: Callable[[], bool],
+) -> list[dict[str, Any] | None]:
+    def task(item: Any) -> dict[str, Any] | None:
+        if cancelled():
+            return None
+        try:
+            return fetch(item)
+        except HTTPError:
+            return None  # one unreadable message must not fail the whole sweep
+
+    results: list[dict[str, Any] | None] = []
+    with ThreadPoolExecutor(max_workers=GMAIL_WORKERS) as pool:
+        for value in pool.map(task, items):
+            results.append(value)
+            on_done()
+    return results
+
+
+def fetch_live_gmail(
+    access_token: str,
+    query: str,
+    max_results: int = 50,
+    *,
+    progress: ProgressFn | None = None,
+    should_cancel: Callable[[], bool] | None = None,
+) -> list[dict[str, Any]]:
+    """Funnel: list ids -> read headers only -> open bodies only for plausible payment mail.
+
+    Developer/social senders and unknown senders with no payment wording in the subject or
+    snippet never have their bodies opened. Progress is reported live through `progress`.
+    """
     max_results = min(max_results, MAX_FETCH_RESULTS)
     financial_query = (query or DEFAULT_GMAIL_QUERY).strip()
     if len(financial_query) > MAX_QUERY_LENGTH:
         raise GmailAccessError("Gmail search query is too long")
 
-    headers = {"Authorization": f"Bearer {access_token}"}
-    metadata: list[dict[str, Any]] = []
-    page_token: str | None = None
-    try:
-        while len(metadata) < max_results:
-            params = {
-                "q": financial_query,
-                "maxResults": str(min(500, max_results - len(metadata))),
-            }
-            if page_token:
-                params["pageToken"] = page_token
-            url = (
-                "https://gmail.googleapis.com/gmail/v1/users/me/messages?"
-                + urllib.parse.urlencode(params)
-            )
-            req = urllib.request.Request(url, headers=headers)
-            data = _gmail_json(req, timeout=12)
-            metadata.extend(data.get("messages", []))
-            page_token = data.get("nextPageToken")
-            if not page_token or not data.get("messages"):
-                break
+    def report(**counts: Any) -> None:
+        if progress:
+            progress(**counts)
 
-        results: list[dict[str, Any]] = []
-        for item in metadata[:max_results]:
-            msg_id = item["id"]
-            msg_url = (
-                "https://gmail.googleapis.com/gmail/v1/users/me/messages/"
-                f"{urllib.parse.quote(msg_id)}?format=full"
-            )
-            msg_req = urllib.request.Request(msg_url, headers=headers)
-            try:
-                msg_data = _gmail_json(msg_req, timeout=8)
-                payload = msg_data.get("payload", {})
-                message_headers = {
-                    h["name"].lower(): h["value"] for h in payload.get("headers", [])
-                }
-                body_text = extract_body_from_payload(payload)
-                snippet = msg_data.get("snippet", "")
-                results.append(
-                    {
-                        "id": msg_id,
-                        "sender": message_headers.get("from", "Unknown Sender"),
-                        "subject": message_headers.get("subject", "No Subject"),
-                        "date": message_headers.get("date", ""),
-                        "snippet": snippet or body_text[:240],
-                        "body": body_text,
-                        "is_real": True,
-                    }
-                )
-            except HTTPError:
+    def cancelled() -> bool:
+        return bool(should_cancel and should_cancel())
+
+    headers = {"Authorization": f"Bearer {access_token}"}
+    try:
+        ids = _list_message_ids(headers, financial_query, max_results, report, cancelled)
+        report(listed=len(ids), truncated=len(ids) >= max_results, stage="reading headers")
+
+        header_done = 0
+
+        def header_tick() -> None:
+            nonlocal header_done
+            header_done += 1
+            report(triaged=header_done)
+
+        metas = _read_parallel(
+            lambda item: _get_message(headers, item["id"], "metadata"), ids, header_tick, cancelled
+        )
+        records: list[dict[str, Any]] = []
+        to_open: list[int] = []
+        for item, meta in zip(ids, metas, strict=True):
+            if meta is None:
                 continue
-        return results
+            record = _to_record(item["id"], meta)
+            tier = classify_sender(record["sender"])
+            if tier != "blocked" and (tier != "unknown" or looks_payment_related(record["subject"], record["snippet"])):
+                to_open.append(len(records))
+            records.append(record)
+
+        resolved = len(records) - len(to_open)  # decided from headers alone
+        report(analysed=resolved, stage="opening likely payment emails")
+
+        def body_tick() -> None:
+            nonlocal resolved
+            resolved += 1
+            report(analysed=resolved)
+
+        fulls = _read_parallel(
+            lambda index: _get_message(headers, records[index]["id"], "full"), to_open, body_tick, cancelled
+        )
+        for index, full in zip(to_open, fulls, strict=True):
+            if full:
+                records[index] = _to_record(
+                    records[index]["id"], full, extract_body_from_payload(full.get("payload", {}))
+                )
+        return records
     except HTTPError as exc:
         detail = exc.read().decode("utf-8", errors="replace")
         raise GmailAccessError(f"Google Gmail API returned {exc.code}: {detail[:240]}") from exc
+    except GmailAccessError:
+        raise
     except Exception as exc:
         raise GmailAccessError("Google Gmail API could not be reached") from exc
 
@@ -389,6 +444,25 @@ def _safe_display_text(value: Any) -> str:
         return "[CREDENTIAL REDACTED]"
 
 
+def _days_between(earlier: str | None, later: str | None) -> int | None:
+    if not earlier or not later:
+        return None
+    try:
+        return (date.fromisoformat(later) - date.fromisoformat(earlier)).days
+    except ValueError:
+        return None
+
+
+_NARRATION = {
+    "upi_failed_debited": "Payment failed and the message mentions a debit",
+    "upi_failed": "Payment failed; debit not confirmed in this message",
+    "order_cancelled": "Order cancelled; refund not confirmed in this message",
+    "atm_failure": "ATM withdrawal failed",
+    "overdue_invoice": "Invoice marked overdue",
+    "debit": "Debit followed by a matching reversal",
+}
+
+
 def filter_and_extract_transactions(
     raw_messages: list[dict[str, Any]],
     *,
@@ -397,65 +471,41 @@ def filter_and_extract_transactions(
 ) -> dict[str, Any]:
     """Clean a bounded inbox and emit only evidence-derived signals and candidates."""
     audited_emails: list[dict[str, Any]] = []
-    candidates: list[dict[str, Any]] = []
-    financial_items: list[dict[str, Any]] = []
+    items: list[dict[str, Any]] = []
+    tier_by_id: dict[str, str] = {}
 
     for msg in raw_messages:
-        body = msg.get("body", "")
-        subject = msg.get("subject", "")
-        snippet = msg.get("snippet", "")
-        text = f"{subject} {snippet} {body}"
-        lowered = text.lower()
-        sender = msg.get("sender", "")
-        sender_lower = sender.lower()
-        if OTP_RE.search(text):
-            status, tag = "noise", "OTP / verification filtered"
-        elif PROMO_RE.search(text) and not any(k in sender_lower for k in KNOWN_BANKS):
-            status, tag = "noise", "Promotional noise filtered"
-        else:
-            amount_paise = parse_amount(text)
-            ref_match = REF_RE.search(text) or UPI_12DIGIT_RE.search(text)
-            is_financial = bool(amount_paise or ref_match or any(k in sender_lower for k in KNOWN_BANKS))
-            if not is_financial:
-                status, tag = "noise", "Non-financial notification filtered"
-            else:
-                channel = (
-                    "UPI" if "upi" in lowered else
-                    "ATM" if "atm" in lowered else
-                    "MSME" if "invoice" in lowered or "overdue" in lowered else "CARD"
-                )
-                is_reversal = any(w in lowered for w in ("reversal", "refund", "credited back", "reversed"))
-                is_debit = any(w in lowered for w in ("debited", "debit", "withdrawal", "deducted"))
-                is_failure = any(
-                    w in lowered for w in ("failed", "incomplete", "timeout", "cash not dispensed", "overdue", "unreversed")
-                )
-                status = "financial_alert"
-                tag = "Financial signal"
-                if is_failure:
-                    status, tag = "violation_detected", "Potential exception; review evidence"
-                financial_items.append(
-                    {
-                        **msg,
-                        "amount_paise": amount_paise,
-                        "ref": ref_match.group(1) if ref_match else None,
-                        "channel": channel,
-                        "date_iso": parse_message_date(msg.get("date", ""), body),
-                        "is_reversal": is_reversal,
-                        "is_debit": is_debit,
-                        "is_failure": is_failure,
-                    }
-                )
-                email_record = {
-                    **msg,
-                    "status": status,
-                    "filterTag": tag,
-                    "extractedAmount": amount_paise,
-                    "extractedChannel": channel,
-                    "extractedRef": ref_match.group(1) if ref_match else None,
-                }
-                audited_emails.append(email_record)
-                continue
-        audited_emails.append({**msg, "status": status, "filterTag": tag})
+        signal = classify_message(
+            msg.get("sender", ""), msg.get("subject", ""), msg.get("snippet", ""), msg.get("body", "")
+        )
+        tier_by_id[str(msg.get("id", ""))] = signal.sender_tier
+        if signal.is_noise:
+            audited_emails.append(
+                {**msg, "status": "noise", "filterTag": signal.tag, "signalReasons": list(signal.reasons)}
+            )
+            continue
+        items.append(
+            {
+                **msg,
+                "kind": signal.kind,
+                "channel": signal.channel,
+                "amount_paise": signal.amount_paise,
+                "ref": signal.ref,
+                "date_iso": parse_message_date(msg.get("date", ""), msg.get("body", "")),
+            }
+        )
+        audited_emails.append(
+            {
+                **msg,
+                "status": "violation_detected" if signal.is_exception else "financial_alert",
+                "filterTag": signal.tag,
+                "signalKind": signal.kind,
+                "signalReasons": list(signal.reasons),
+                "extractedAmount": signal.amount_paise,
+                "extractedChannel": signal.channel,
+                "extractedRef": signal.ref,
+            }
+        )
 
     def source(item: dict[str, Any]) -> dict[str, str]:
         return {
@@ -464,50 +514,71 @@ def filter_and_extract_transactions(
             "snippet": _safe_display_text(item.get("snippet", "")),
         }
 
-    # A debit becomes a candidate only when a matching later reversal is found.
-    for debit in [item for item in financial_items if item["is_debit"] and not item["is_reversal"]]:
-        matches = [
-            item for item in financial_items
-            if item["is_reversal"]
-            and (debit["ref"] and item["ref"] == debit["ref"])
-            and item.get("date_iso") and debit.get("date_iso")
-            and item["date_iso"] >= debit["date_iso"]
-        ]
-        if not matches:
-            continue
-        reversal = sorted(matches, key=lambda item: item["date_iso"])[0]
-        candidates.append(
-            {
-                "txn_id": f"gmail-{debit['id']}",
-                "date": debit.get("date_iso"),
-                "reversal_date": reversal.get("date_iso"),
-                "narration_clean": f"{debit['channel']} debit followed by a matching reversal",
-                "debit": debit.get("amount_paise") or 0,
-                "channel": debit["channel"],
-                "ref": debit.get("ref"),
-                "parse_confidence": 0.9 if debit.get("date_iso") else 0.7,
-                "evidence_status": "paired_reversal",
-                "email_source": source(debit),
-            }
-        )
+    refunds = [item for item in items if item["kind"] == "refund_credited"]
 
-    # Explicit failure/overdue language is a review candidate, but not proof of liability.
-    for item in financial_items:
-        if item["is_failure"] and not any(c["txn_id"] == f"gmail-{item['id']}" for c in candidates):
-            candidates.append(
-                {
-                    "txn_id": f"gmail-{item['id']}",
-                    "date": item.get("date_iso"),
-                    "reversal_date": None,
-                    "narration_clean": f"{item['channel']} message contains failure or overdue language",
-                    "debit": item.get("amount_paise") or 0,
-                    "channel": item["channel"],
-                    "ref": item.get("ref"),
-                    "parse_confidence": 0.75 if item.get("amount_paise") else 0.55,
-                    "evidence_status": "potential_exception",
-                    "email_source": source(item),
-                }
-            )
+    def find_reversal(origin: dict[str, Any]) -> dict[str, Any] | None:
+        matches = []
+        for refund in refunds:
+            gap = _days_between(origin.get("date_iso"), refund.get("date_iso"))
+            if gap is None or gap < 0:
+                continue
+            if origin["ref"] and refund["ref"]:
+                same = origin["ref"] == refund["ref"]
+            else:  # no reference on one side: fall back to amount inside a short window
+                same = (
+                    bool(origin["amount_paise"])
+                    and origin["amount_paise"] == refund["amount_paise"]
+                    and gap <= REVERSAL_MATCH_WINDOW_DAYS
+                )
+            if same:
+                matches.append(refund)
+        return min(matches, key=lambda item: item["date_iso"]) if matches else None
+
+    def candidate(item: dict[str, Any], reversal: dict[str, Any] | None) -> dict[str, Any]:
+        return {
+            "txn_id": f"gmail-{item['id']}",
+            "date": item.get("date_iso"),
+            "reversal_date": reversal.get("date_iso") if reversal else None,
+            "narration_clean": _NARRATION.get(item["kind"], "Payment exception"),
+            "debit": item.get("amount_paise") or 0,
+            "channel": item["channel"],
+            "ref": item.get("ref"),
+            "parse_confidence": (0.9 if item.get("date_iso") else 0.7) if reversal
+            else (0.75 if item.get("amount_paise") else 0.55),
+            "evidence_status": "paired_reversal" if reversal else "potential_exception",
+            "reversal_seen": reversal is not None,
+            "email_source": source(item),
+            "related_sources": [],
+        }
+
+    candidates: list[dict[str, Any]] = []
+    # 1. A debit alert with a matching reversal: the delay itself is the evidence.
+    for debit in (item for item in items if item["kind"] == "debit"):
+        reversal = find_reversal(debit)
+        if reversal:
+            candidates.append(candidate(debit, reversal))
+
+    def already_covered(item: dict[str, Any]) -> dict[str, Any] | None:
+        for existing in candidates:
+            gap = _days_between(existing["date"], item.get("date_iso"))
+            same_amount = existing["debit"] == (item.get("amount_paise") or 0)
+            same_ref = not (existing["ref"] and item.get("ref")) or existing["ref"] == item.get("ref")
+            if (
+                existing["channel"] == item["channel"] and same_amount and same_ref
+                and gap is not None and abs(gap) <= 1
+            ):
+                return existing
+        return None
+
+    # 2. Failure / cancellation / overdue messages; merged into (1) when they describe the same payment.
+    for item in items:
+        if item["kind"] in {"debit", "refund_credited"}:
+            continue
+        covered = already_covered(item)
+        if covered:
+            covered["related_sources"].append(source(item))
+            continue
+        candidates.append(candidate(item, find_reversal(item)))
 
     safe_emails = [
         {
@@ -524,12 +595,29 @@ def filter_and_extract_transactions(
         client=llm_client,
         settings=llm_settings or LLMSettings(),
     )
+
+    # The model may only *remove* weak evidence: an unknown-sender candidate that triage calls
+    # "possible noise" is dropped. It can never add a candidate or change a deterministic field.
+    vetoed: set[str] = set()
+    for email in safe_emails:
+        relevance = (email.get("llm_assistance") or {}).get("relevance")
+        if (
+            email["status"] != "noise"
+            and relevance == "possible_noise"
+            and tier_by_id.get(str(email.get("id", ""))) == "unknown"
+        ):
+            email.update(status="noise", filterTag="AI reviewed: not a payment event", vetoed_by_ai=True)
+            vetoed.add(str(email["id"]))
+    candidates = [c for c in candidates if c["txn_id"].removeprefix("gmail-") not in vetoed]
+
+    rank = {"violation_detected": 0, "financial_alert": 1, "noise": 2}
+    safe_emails.sort(key=lambda email: rank.get(email["status"], 3))  # stable: newest-first within a group
     return {
         "status": "success",
         "sweep_timestamp": datetime.now().isoformat(),
         "emails_scanned": len(raw_messages),
-        "noise_filtered": sum(email["status"] == "noise" for email in audited_emails),
-        "financial_alerts_found": sum(email["status"] != "noise" for email in audited_emails),
+        "noise_filtered": sum(email["status"] == "noise" for email in safe_emails),
+        "financial_alerts_found": sum(email["status"] != "noise" for email in safe_emails),
         "violations_detected": len(candidates),
         "emails": safe_emails,
         "candidates": candidates,
@@ -547,15 +635,21 @@ def search_gmail(
     demo: bool = False,
     llm_client: LLMClient | None = None,
     llm_settings: LLMSettings | None = None,
+    progress: ProgressFn | None = None,
+    should_cancel: Callable[[], bool] | None = None,
 ) -> dict[str, Any]:
     """Perform a live Gmail sweep, or use the synthetic corpus only when demo is explicit."""
     raw_messages: list[dict[str, Any]] = []
 
     if access_token and access_token.strip():
-        raw_messages = fetch_live_gmail(access_token.strip(), query, max_results)
+        raw_messages = fetch_live_gmail(
+            access_token.strip(), query, max_results, progress=progress, should_cancel=should_cancel
+        )
     elif demo:
         raw_messages = get_demo_email_corpus()
     else:
         raise GmailAccessError("A connected Gmail session is required")
 
+    if progress:
+        progress(stage="classifying with Groq" if llm_client else "classifying")
     return filter_and_extract_transactions(raw_messages, llm_client=llm_client, llm_settings=llm_settings)

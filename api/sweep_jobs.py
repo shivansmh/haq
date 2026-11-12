@@ -21,6 +21,8 @@ class SweepJob:
     analysed: int = 0
     relevant: int = 0
     not_analysed: int = 0
+    stage: str = "queued"
+    truncated: bool = False
     result: dict[str, Any] | None = None
     error: str | None = None
     thread: threading.Thread | None = field(default=None, repr=False)
@@ -36,6 +38,8 @@ class SweepJob:
             "analysed": self.analysed,
             "relevant": self.relevant,
             "not_analysed": self.not_analysed,
+            "stage": self.stage,
+            "truncated": self.truncated,
             "elapsed_seconds": round(max(0.0, now - self.created_at), 3),
             "created_at": datetime.fromtimestamp(self.created_at).isoformat(),
             "error": self.error,
