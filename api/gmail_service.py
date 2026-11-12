@@ -25,6 +25,7 @@ from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from datetime import date, datetime
 from email.utils import parsedate_to_datetime
+from html.parser import HTMLParser
 from typing import Any
 from urllib.error import HTTPError
 
@@ -154,21 +155,58 @@ def decode_base64_url(encoded: str) -> str:
         return ""
 
 
+class _ReadableHTML(HTMLParser):
+    """Extract visible email text while dropping markup, styles, and scripts."""
+
+    _SKIP = {"head", "script", "style", "noscript", "svg"}
+    _BLOCK = {"address", "article", "blockquote", "br", "div", "footer", "h1", "h2", "h3", "li", "p", "section", "table", "tr"}
+
+    def __init__(self) -> None:
+        super().__init__(convert_charrefs=True)
+        self.parts: list[str] = []
+        self._skip_depth = 0
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        if tag in self._SKIP:
+            self._skip_depth += 1
+        elif not self._skip_depth and tag in self._BLOCK:
+            self.parts.append("\n")
+
+    def handle_endtag(self, tag: str) -> None:
+        if tag in self._SKIP and self._skip_depth:
+            self._skip_depth -= 1
+        elif not self._skip_depth and tag in self._BLOCK:
+            self.parts.append("\n")
+
+    def handle_data(self, data: str) -> None:
+        if not self._skip_depth:
+            self.parts.append(data)
+
+    def text(self) -> str:
+        rows = [re.sub(r"[ \t\xa0]+", " ", row).strip() for row in "".join(self.parts).splitlines()]
+        return "\n".join(row for row in rows if row)
+
+
 def extract_body_from_payload(payload: dict[str, Any]) -> str:
-    """Extract all readable body parts, bounded for transient processing only."""
-    chunks: list[str] = []
+    """Prefer plain text; otherwise return visible HTML text, bounded for transient use."""
+    plain_chunks: list[str] = []
+    html_chunks: list[str] = []
 
     def visit(node: dict[str, Any]) -> None:
         mime = node.get("mimeType", "")
         data = node.get("body", {}).get("data", "")
         if data and mime == "text/plain":
-            chunks.append(decode_base64_url(data))
+            plain_chunks.append(decode_base64_url(data))
         elif data and mime == "text/html":
-            chunks.append(re.sub(r"<[^>]+>", " ", decode_base64_url(data)))
+            parser = _ReadableHTML()
+            parser.feed(decode_base64_url(data))
+            parser.close()
+            html_chunks.append(parser.text())
         for child in node.get("parts", []):
             visit(child)
 
     visit(payload)
+    chunks = plain_chunks or html_chunks
     return "\n".join(chunk for chunk in chunks if chunk)[:8000]
 
 

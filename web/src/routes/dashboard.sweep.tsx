@@ -206,7 +206,7 @@ function SweepPage() {
         {notice && <Notice text={notice} />}
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
-            <p className="text-sm text-muted-foreground">Tracked across this session</p>
+            <p className="text-sm text-muted-foreground">Total transaction value</p>
             <p className="font-display text-6xl">{inr(summary.total_amount_paise)}</p>
             <p className="mt-1 text-sm text-muted-foreground">
               {records.length} tracked record{records.length === 1 ? "" : "s"} · {inr(outstanding)}{" "}

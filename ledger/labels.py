@@ -193,7 +193,8 @@ def labels_for(
     if segment == "business":
         labels.append("business")
     labels.append("refund-received" if resolution_received else "refund-pending")
-    labels.append("rule-" + rule_status.casefold())
+    if rule_status != "None":
+        labels.append("rule-" + rule_status.casefold())
     for kind in sorted(signal_kinds):
         if kind not in labels and kind not in {"debit"}:
             labels.append(kind)
@@ -207,8 +208,22 @@ def recommended_actions(
     resolution_received: bool,
     compliance: str,
     segment: Segment,
+    has_origin: bool = True,
 ) -> list[str]:
     """Plain next steps. Never a promise of compensation."""
+    if resolution_received and not has_origin:
+        if claim_type == "msme_invoice_overdue":
+            noun, original = "payment", "invoice or remittance"
+        elif claim_type == "atm_cash_not_dispensed":
+            noun, original = "cash reversal", "ATM withdrawal"
+        else:
+            noun, original = "refund", "transaction"
+        return [
+            f"A {noun} confirmation was found, but the original {original} was not. "
+            f"Check it against your records before treating it as resolved. "
+            f"No legal timing or compensation is assessed until the {original} is matched."
+        ]
+
     if claim_type == "msme_invoice_overdue":
         actions = [
             "Send a written demand to the buyer's accounts team quoting the invoice number and due date.",
@@ -219,12 +234,16 @@ def recommended_actions(
             actions.insert(0, "Payment appears received; confirm the credited amount matches the invoice.")
         return actions
 
-    if resolution_received and compliance == "on_time":
-        return ["Refund appears received on time. Keep this record with the reference for your files."]
     if resolution_received:
+        if compliance == "on_time":
+            return ["Refund appears received on time. Keep this record with the reference for your files."]
+        if compliance != "late":
+            return [
+                "Refund appears received. Haq could not assess legal timing, so no compensation is "
+                "calculated. Keep the credit confirmation with the transaction evidence."
+            ]
         return [
-            "Refund appears received; compare the credit date with the rule's turnaround time.",
-            "If the credit was late, ask the bank or payment app to confirm any compensation in writing.",
+            "The refund appears late under the verified rule. Ask the bank or payment app to confirm any applicable compensation in writing.",
         ]
 
     if claim_type == "atm_cash_not_dispensed":

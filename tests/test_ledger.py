@@ -7,7 +7,11 @@ from uuid import uuid4
 
 from fastapi.testclient import TestClient
 
-from api.gmail_service import filter_and_extract_transactions, get_demo_email_corpus
+from api.gmail_service import (
+    extract_body_from_payload,
+    filter_and_extract_transactions,
+    get_demo_email_corpus,
+)
 from api.ledger_store import LedgerStore
 from api.main import app
 from cases.builder import build_cases
@@ -182,6 +186,62 @@ def test_unverified_rules_never_produce_a_verified_stamp() -> None:
         assert record["legal"]["stamp"] != "VERIFIED RULE"
         assert record["legal"]["rule_verified"] is False
         assert record["legal"]["compensation"]["computed"] is False
+
+
+def test_refund_without_original_transaction_is_not_given_a_legal_clock() -> None:
+    records = _records_for(
+        [
+            message(
+                "refund-only",
+                address("no-reply", "razorpay.com"),
+                "Refund successful for Coursera",
+                "Refund of Rs 1 successfully credited to your card.",
+                "Sun, 18 Oct 2026 10:00:00 +0530",
+            )
+        ],
+        load_registry(),
+    )
+
+    assert len(records) == 1
+    record = records[0]
+    assert record.resolution.received is True
+    assert record.status == "reference_only"
+    assert record.status_label == "Match needed"
+    assert record.transaction.origin_date is None
+    assert record.legal.rule_id is None
+    assert record.legal.indicative_deadline_date is None
+    assert record.legal.compliance == "unknown"
+    assert record.legal.compliance_label == "Refund received; legal timing not assessed"
+    assert "original_transaction_not_matched" in record.risk_flags
+    assert not any(label.startswith("rule-") for label in record.labels)
+    assert "no legal timing or compensation is assessed" in record.recommended_actions[0].lower()
+
+
+def test_html_email_extraction_ignores_style_and_prefers_plain_text() -> None:
+    import base64
+
+    def encoded(value: str) -> str:
+        return base64.urlsafe_b64encode(value.encode()).decode()
+
+    payload = {
+        "mimeType": "multipart/alternative",
+        "parts": [
+            {"mimeType": "text/plain", "body": {"data": encoded("Refund of Rs 1 credited to your card.")}},
+            {
+                "mimeType": "text/html",
+                "body": {
+                    "data": encoded(
+                        "<html><head><style>#outlook a { padding: 0; }</style></head>"
+                        "<body><p>Refund of Rs 1 credited to your card.</p></body></html>"
+                    )
+                },
+            },
+        ],
+    }
+
+    body = extract_body_from_payload(payload)
+    assert body == "Refund of Rs 1 credited to your card."
+    assert "outlook" not in body
 
 
 # ------------------------------------------------------------------ stable ids and tracking

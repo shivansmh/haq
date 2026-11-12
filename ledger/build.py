@@ -145,12 +145,15 @@ def _legal(
     deadline = origin_date + timedelta(days=offset) if origin_date and verified and offset is not None else None
     indicative = (
         origin_date + timedelta(days=offset)
-        if origin_date and not verified and offset is not None
+        if origin_date and not verified and offset is not None and resolved_on is None
         else None
     )
     resolution_received = resolved_on is not None
 
-    if verified and deadline is not None:
+    if origin_date is None:
+        compliance = "unknown"
+        days_overdue = None
+    elif verified and deadline is not None:
         if resolution_received:
             compliance = "on_time" if resolved_on <= deadline else "late"
             days_overdue = max(0, (resolved_on - deadline).days)
@@ -201,14 +204,22 @@ def _legal(
         note = f"The linked rule {rule_id} is Verified in the registry."
     elif entry is not None:
         stamp = "UNVERIFIED RULE"
-        note = (
-            f"The linked rule {rule_id} is {rule_status}, so the turnaround time and any amount are "
-            "shown only as an indicative reference, not a legal conclusion."
-        )
+        if resolution_received:
+            note = (
+                f"A {_RESOLUTION_NOUN.get(kind, 'refund').lower()} was detected, but rule {rule_id} "
+                f"is {rule_status}. Haq cannot assess whether it was timely or whether compensation applies."
+            )
+        else:
+            note = f"The linked rule {rule_id} is {rule_status}; Haq does not assert a legal deadline or amount."
     else:
         stamp = "NO RULE"
         note = "No verified registry rule is linked yet; this record is evidence-first."
 
+    compliance_label = (
+        f"{_RESOLUTION_NOUN.get(kind, 'Refund')} received; legal timing not assessed"
+        if resolution_received and origin_date is None
+        else _compliance_label(compliance, _RESOLUTION_NOUN.get(kind, "Refund"))
+    )
     return LegalAssessment(
         rule_id=rule_id,
         rule_status=rule_status,
@@ -219,7 +230,7 @@ def _legal(
         indicative_deadline_date=indicative,
         days_overdue=days_overdue,
         compliance=compliance,  # type: ignore[arg-type]
-        compliance_label=_compliance_label(compliance, _RESOLUTION_NOUN.get(kind, "Refund")),
+        compliance_label=compliance_label,
         compensation=Compensation(
             computed=computed,
             amount_paise=amount_paise,
@@ -238,9 +249,12 @@ def _status(
     compliance: str,
     has_rule: bool,
     kind: str,
+    has_origin: bool = True,
 ) -> tuple[str, str]:
     noun = _RESOLUTION_NOUN.get(kind, "Refund")
     lower = noun.lower()
+    if not has_origin:
+        return "reference_only", "Match needed"
     if resolution_received:
         if compliance == "late":
             return "action_needed", f"{noun} was late; check compensation"
@@ -341,10 +355,9 @@ def build_flagged_records(
         events = sorted(case.events, key=lambda event: (event.event_date or date.min, event.event_id))
         origins = [event for event in events if event.event_type not in RESOLUTION_EVENTS]
         resolutions = [event for event in events if event.event_type in RESOLUTION_EVENTS]
+        has_origin = bool(origins)
         origin_date = min((event.event_date for event in origins if event.event_date), default=None)
         resolved_on = max((event.event_date for event in resolutions if event.event_date), default=None)
-        if origin_date is None:
-            origin_date = min((event.event_date for event in events if event.event_date), default=None)
 
         merchant = detect_merchant(
             origins[0].sender if origins else (events[0].sender if events else ""),
@@ -355,11 +368,15 @@ def build_flagged_records(
         segment = detect_segment(case.claim_type, vertical, haystack)
         kind = _resolution_kind(case.claim_type)
         resolution_received = resolved_on is not None
-        entry = _entry_for(case.rule_id, registry)
+        # A credit email alone proves only that money came back. It cannot establish
+        # what transaction it reverses or start a legal turnaround-time clock.
+        rule_id = case.rule_id if has_origin else None
+        rule_status = case.rule_status if has_origin else "None"
+        entry = _entry_for(rule_id, registry)
         legal = _legal(
             claim_type=case.claim_type,
-            rule_id=case.rule_id,
-            rule_status=case.rule_status,
+            rule_id=rule_id,
+            rule_status=rule_status,
             entry=entry,
             origin_date=origin_date,
             resolved_on=resolved_on,
@@ -369,14 +386,17 @@ def build_flagged_records(
         status, status_label = _status(
             resolution_received=resolution_received,
             compliance=legal.compliance,
-            has_rule=case.rule_id is not None,
+            has_rule=rule_id is not None,
             kind=kind,
+            has_origin=has_origin,
         )
         evidence = _evidence(events)
         amount_paise = case.amount_paise
         risk_flags: list[str] = []
-        if not legal.rule_verified:
+        if rule_id and not legal.rule_verified:
             risk_flags.append("rule_not_verified")
+        if not has_origin:
+            risk_flags.append("original_transaction_not_matched")
         if not resolution_received:
             risk_flags.append("payment_not_received" if kind == "payment" else "refund_not_received")
         if legal.compliance == "late":
@@ -406,7 +426,7 @@ def build_flagged_records(
             vertical=vertical,
             segment=segment,
             resolution_received=resolution_received,
-            rule_status=case.rule_status,
+            rule_status=rule_status,
             signal_kinds=signal_kinds,
         )
 
@@ -418,9 +438,17 @@ def build_flagged_records(
                     reference=case.reference,
                 ),
                 case_id=case.case_id,
-                title=spec.name,
+                title=(
+                    spec.name
+                    if has_origin
+                    else f"{_RESOLUTION_NOUN.get(kind, 'Refund')} confirmation"
+                ),
                 claim_type=case.claim_type,
-                category_label=_CATEGORY_LABEL.get(case.claim_type, spec.name),
+                category_label=(
+                    _CATEGORY_LABEL.get(case.claim_type, spec.name)
+                    if has_origin
+                    else f"{_RESOLUTION_NOUN.get(kind, 'Refund')} confirmation"
+                ),
                 segment=segment,
                 vertical=vertical,
                 status=status,  # type: ignore[arg-type]
@@ -431,7 +459,7 @@ def build_flagged_records(
                     channel=channel,
                     merchant=merchant,
                     origin_date=origin_date,
-                    origin_email_id=origins[0].email_id if origins else None,
+                    origin_email_id=origins[0].email_id if has_origin else None,
                 ),
                 resolution=Resolution(
                     kind=kind,  # type: ignore[arg-type]
@@ -454,10 +482,13 @@ def build_flagged_records(
                     resolution_received=resolution_received,
                     compliance=legal.compliance,
                     segment=segment,
+                    has_origin=has_origin,
                 ),
                 ai=AIEnrichment(),
                 tracking=Tracking(first_seen_at=seen_at, last_seen_at=seen_at),
-                needs_review=amount_paise is None or any(row.duplicate for row in evidence),
+                needs_review=(
+                    not has_origin or amount_paise is None or any(row.duplicate for row in evidence)
+                ),
             )
         )
     return records
@@ -491,13 +522,19 @@ def project_email(record: FlaggedRecord, email_id: str) -> EmailFlag | None:
 def reassess_record(record: FlaggedRecord, *, today: date | None = None) -> FlaggedRecord:
     """Recompute deterministic rule timing after evidence arrives in a later sweep."""
     effective_today = today or date.today()
-    entry = _entry_for(record.legal.rule_id, load_registry())
+    has_origin = record.transaction.origin_email_id is not None
+    transaction = record.transaction
+    if not has_origin and transaction.origin_date is not None:
+        transaction = transaction.model_copy(update={"origin_date": None})
+    rule_id = record.legal.rule_id if has_origin else None
+    rule_status = record.legal.rule_status if has_origin else "None"
+    entry = _entry_for(rule_id, load_registry())
     legal = _legal(
         claim_type=record.claim_type,
-        rule_id=record.legal.rule_id,
-        rule_status=record.legal.rule_status,
+        rule_id=rule_id,
+        rule_status=rule_status,
         entry=entry,
-        origin_date=record.transaction.origin_date,
+        origin_date=transaction.origin_date,
         resolved_on=record.resolution.received_on,
         today=effective_today,
         kind=record.resolution.kind,
@@ -505,13 +542,24 @@ def reassess_record(record: FlaggedRecord, *, today: date | None = None) -> Flag
     status, status_label = _status(
         resolution_received=record.resolution.received,
         compliance=legal.compliance,
-        has_rule=record.legal.rule_id is not None,
+        has_rule=rule_id is not None,
         kind=record.resolution.kind,
+        has_origin=has_origin,
     )
     risk_flags = [
         flag for flag in record.risk_flags
-        if flag not in {"refund_not_received", "payment_not_received", "refund_late"}
+        if flag not in {
+            "refund_not_received",
+            "payment_not_received",
+            "refund_late",
+            "original_transaction_not_matched",
+            "rule_not_verified",
+        }
     ]
+    if not has_origin:
+        risk_flags.append("original_transaction_not_matched")
+    if rule_id and not legal.rule_verified:
+        risk_flags.append("rule_not_verified")
     if not record.resolution.received:
         risk_flags.append("payment_not_received" if record.resolution.kind == "payment" else "refund_not_received")
     if legal.compliance == "late":
@@ -519,15 +567,25 @@ def reassess_record(record: FlaggedRecord, *, today: date | None = None) -> Flag
     return record.model_copy(
         update={
             "legal": legal,
+            "transaction": transaction,
             "status": status,
             "status_label": status_label,
             "risk_flags": list(dict.fromkeys(risk_flags)),
+            "labels": list(
+                dict.fromkeys(
+                    [
+                        *(label for label in record.labels if not label.startswith("rule-")),
+                        *([f"rule-{rule_status.casefold()}"] if rule_id else []),
+                    ]
+                )
+            ),
             "recommended_actions": recommended_actions(
                 claim_type=record.claim_type,
                 status=status,
                 resolution_received=record.resolution.received,
                 compliance=legal.compliance,
                 segment=record.segment,
+                has_origin=has_origin,
             ),
         }
     )

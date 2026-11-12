@@ -1,17 +1,21 @@
 import { useState } from "react";
 import {
-  Building2,
   Check,
   ChevronDown,
   Clock,
   Copy,
-  Gamepad2,
   Scale,
   ShieldAlert,
   Sparkles,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { inr, RECORD_STATUS_LABELS, type EvidenceRole, type FlaggedRecord } from "@/lib/haq-types";
+import {
+  inr,
+  RECORD_STATUS_LABELS,
+  VERTICAL_LABELS,
+  type EvidenceRole,
+  type FlaggedRecord,
+} from "@/lib/haq-types";
 
 const ROLE_LABELS: Record<EvidenceRole, string> = {
   debit: "Debit alert",
@@ -53,6 +57,15 @@ function riskLabel(flag: string) {
   return flag.replace(/_/g, " ");
 }
 
+function cleanEvidenceQuote(value: string) {
+  return value
+    .replace(/#outlook\s+a\s*\{[^}]*\}/gi, "")
+    .replace(/\.ReadMsgBody\s*\{[^}]*\}/gi, "")
+    .replace(/\.ExternalClass(?:\s+\*)?\s*\{[^}]*\}/gi, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 export function RecordCard({ record }: { record: FlaggedRecord }) {
   const [open, setOpen] = useState(false);
   const [showJson, setShowJson] = useState(false);
@@ -61,7 +74,38 @@ export function RecordCard({ record }: { record: FlaggedRecord }) {
   const evidence = record.evidence ?? [];
   const timeline = record.timeline ?? [];
   const labels = record.labels ?? [];
-  const actions = record.recommended_actions ?? [];
+  const unmatchedResolution =
+    record.resolution.received && !record.transaction.origin_email_id;
+  const resolutionNoun =
+    record.resolution.kind === "payment"
+      ? "Payment"
+      : record.resolution.kind === "cash"
+        ? "Cash reversal"
+        : "Refund";
+  const actions = unmatchedResolution
+    ? [
+        `${resolutionNoun} confirmation was found, but the original transaction was not. Check it against your records before treating it as resolved. No legal timing or compensation is assessed until the transaction is matched.`,
+      ]
+    : record.resolution.received && !legal.rule_verified
+      ? [
+          `${resolutionNoun} appears received. Haq could not assess legal timing, so no compensation is calculated. Keep the confirmation with the transaction evidence.`,
+        ]
+      : (record.recommended_actions ?? []);
+  const verticalLabel = VERTICAL_LABELS[record.vertical];
+  const legalStampClass = unmatchedResolution
+    ? "bg-secondary text-muted-foreground"
+    : legal.stamp === "VERIFIED RULE"
+      ? "bg-primary/15 text-primary"
+      : legal.stamp === "UNVERIFIED RULE"
+        ? "bg-warning/15 text-warning"
+        : "bg-secondary text-muted-foreground";
+  const legalTimingText = unmatchedResolution
+    ? `No legal deadline is assessed for an unmatched ${resolutionNoun.toLowerCase()}.`
+    : legal.deadline_date
+      ? `Deadline ${formatDate(legal.deadline_date)}`
+      : legal.rule_verified
+        ? "No deadline is asserted for this record."
+        : "Timing and compensation are not assessed for an unverified rule.";
 
   const copyJson = async () => {
     await navigator.clipboard.writeText(JSON.stringify(record, null, 2));
@@ -97,39 +141,42 @@ export function RecordCard({ record }: { record: FlaggedRecord }) {
             >
               {record.status_label || RECORD_STATUS_LABELS[record.status]}
             </span>
-            {record.vertical === "gaming" && (
-              <span className="flex items-center gap-1 rounded-full bg-secondary px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">
-                <Gamepad2 className="size-3" /> Gaming
-              </span>
-            )}
-            {record.segment === "business" && (
-              <span className="flex items-center gap-1 rounded-full bg-secondary px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">
-                <Building2 className="size-3" /> Business
-              </span>
-            )}
             {record.needs_review && (
-              <span className="rounded-full bg-warning/15 px-2 py-0.5 text-[10px] font-semibold text-warning">
-                Check
+              <span className="rounded-full border border-warning/30 px-2 py-0.5 text-[10px] font-semibold text-warning">
+                Review needed
               </span>
             )}
           </div>
           <p className="mt-1 truncate text-xs text-muted-foreground">
-            {record.transaction.merchant ?? "Counterparty not identified"} ·{" "}
-            {record.transaction.reference ? `Ref ${record.transaction.reference}` : "no reference"}{" "}
-            · {evidence.length} email{evidence.length === 1 ? "" : "s"}
+            {verticalLabel !== "Other" && (
+              <>
+                {record.segment === "business" && verticalLabel !== "Business" && "Business · "}
+                {verticalLabel} ·{" "}
+              </>
+            )}
+            {record.transaction.merchant ?? "Counterparty not identified"}
+            {record.transaction.reference ? ` · Ref ${record.transaction.reference}` : " · no reference"}
+            {` · ${evidence.length} email${evidence.length === 1 ? "" : "s"}`}
             {record.tracking.sweep_count > 1
               ? ` · seen in ${record.tracking.sweep_count} sweeps`
               : ""}
           </p>
           <p className={cn("mt-1 text-xs font-medium", COMPLIANCE_STYLES[legal.compliance])}>
-            {legal.compliance_label}
+            {record.resolution.received && !legal.rule_verified
+              ? `${resolutionNoun} received · legal timing not assessed`
+              : legal.compliance_label}
           </p>
         </div>
         <div className="text-right">
           <p className="font-display text-2xl">{inr(record.amount.value_paise)}</p>
           <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
-            {formatDate(record.transaction.origin_date)}
+            {unmatchedResolution ? `${resolutionNoun} received` : "Transaction amount"}
           </p>
+          {record.transaction.origin_date && (
+            <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
+              {formatDate(record.transaction.origin_date)}
+            </p>
+          )}
         </div>
         <ChevronDown className={cn("size-4 shrink-0 transition-transform", open && "rotate-180")} />
       </button>
@@ -144,14 +191,16 @@ export function RecordCard({ record }: { record: FlaggedRecord }) {
               <p className="mt-2 text-sm">
                 {record.resolution.received
                   ? `Received ${formatDate(record.resolution.received_on)}${
-                      record.resolution.days_to_resolution != null
+                      !unmatchedResolution && record.resolution.days_to_resolution != null
                         ? ` · ${record.resolution.days_to_resolution} day${record.resolution.days_to_resolution === 1 ? "" : "s"} after the transaction`
                         : ""
                     }`
                   : "Not seen in the swept emails yet"}
               </p>
               <p className="mt-1 text-xs text-muted-foreground">
-                {record.status_label}
+                {unmatchedResolution
+                  ? `This ${resolutionNoun.toLowerCase()} could not be matched to an original transaction.`
+                  : record.status_label}
                 {legal.days_overdue != null && legal.days_overdue > 0
                   ? ` · ${legal.days_overdue} day${legal.days_overdue === 1 ? "" : "s"} beyond the rule's timeline`
                   : ""}
@@ -165,36 +214,32 @@ export function RecordCard({ record }: { record: FlaggedRecord }) {
                 <span
                   className={cn(
                     "rounded-full px-2 py-0.5 text-[10px] font-semibold",
-                    legal.stamp === "VERIFIED RULE"
-                      ? "bg-primary/15 text-primary"
-                      : legal.stamp === "UNVERIFIED RULE"
-                        ? "bg-warning/15 text-warning"
-                        : "bg-secondary text-muted-foreground",
+                    legalStampClass,
                   )}
                 >
-                  {legal.stamp}
+                  {unmatchedResolution ? "TRANSACTION NOT MATCHED" : legal.stamp}
                 </span>
-                <span>{legal.rule_id ?? "No linked rule"}</span>
-                {legal.rule_id && (
+                {!unmatchedResolution && <span>{legal.rule_id ?? "No linked rule"}</span>}
+                {!unmatchedResolution && legal.rule_id && (
                   <span className="text-xs text-muted-foreground">({legal.rule_status})</span>
                 )}
               </p>
-              <p className="mt-1 text-xs text-muted-foreground">{legal.note}</p>
-              <p className="mt-2 text-xs">
-                {legal.deadline_date
-                  ? `Deadline ${formatDate(legal.deadline_date)}`
-                  : legal.indicative_deadline_date
-                    ? `Indicative deadline ${formatDate(legal.indicative_deadline_date)} (unverified rule)`
-                    : "No deadline is asserted for this record."}
+              <p className="mt-1 text-xs text-muted-foreground">
+                {unmatchedResolution
+                  ? `A ${resolutionNoun.toLowerCase()} email was found without the original transaction evidence. No legal timeline or compensation assessment is applied.`
+                  : legal.note}
               </p>
-              {legal.compensation.note && (
+              <p className="mt-2 text-xs">
+                {legalTimingText}
+              </p>
+              {legal.compensation.note && legal.rule_verified && (
                 <p className="mt-1 text-xs text-muted-foreground">
                   {legal.compensation.computed && legal.compensation.amount_paise != null
                     ? `Compensation: ${inr(legal.compensation.amount_paise)}. ${legal.compensation.note}`
                     : legal.compensation.note}
                 </p>
               )}
-              {legal.citation && (
+              {legal.citation && legal.rule_verified && (
                 <p className="mt-1 text-[10px] text-muted-foreground">Source: {legal.citation}</p>
               )}
             </div>
@@ -253,7 +298,7 @@ export function RecordCard({ record }: { record: FlaggedRecord }) {
                     </div>
                     <p className="mt-1 font-medium">{item.subject}</p>
                     <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
-                      “{item.quote}”
+                      “{cleanEvidenceQuote(item.quote)}”
                     </p>
                   </li>
                 ))}
@@ -268,7 +313,9 @@ export function RecordCard({ record }: { record: FlaggedRecord }) {
                   key={flag}
                   className="rounded-full border border-border px-2 py-0.5 text-[10px] font-semibold text-muted-foreground"
                 >
-                  {riskLabel(flag)}
+                  {flag === "original_transaction_not_matched"
+                    ? "original transaction not matched"
+                    : riskLabel(flag)}
                 </span>
               ))}
             </div>
@@ -362,18 +409,18 @@ export function RecordSummaryStrip({
 }) {
   const cells = [
     ["Tracked records", summary.total_records],
-    ["Money returned", summary.refunds_received],
-    ["Waiting", summary.refunds_pending],
+    ["Resolved", summary.refunds_received],
+    ["Pending", summary.refunds_pending],
     ["Action needed", summary.action_needed],
-    ["Business", summary.business_records],
-    ["Gaming", summary.gaming_records],
+    ["Business records", summary.business_records],
+    ["Gaming records", summary.gaming_records],
   ];
   return (
-    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+    <div className="grid grid-cols-2 gap-px overflow-hidden rounded-2xl border border-border bg-border sm:grid-cols-3 lg:grid-cols-6">
       {cells.map(([label, value]) => (
-        <div key={label} className="rounded-xl border border-border bg-card p-3">
-          <p className="font-display text-2xl">{value}</p>
-          <p className="text-[11px] text-muted-foreground">{label}</p>
+        <div key={label} className="bg-card px-3 py-3">
+          <p className="font-display text-xl">{value}</p>
+          <p className="text-[11px] leading-tight text-muted-foreground">{label}</p>
         </div>
       ))}
     </div>
