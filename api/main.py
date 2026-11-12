@@ -58,6 +58,13 @@ GMAIL_SESSIONS: dict[str, dict[str, Any]] = {}
 _GROQ_CLIENT: GroqClient | None = None
 _GROQ_CLIENT_LOCK = Lock()
 
+
+def _frontend_sweep_url() -> str:
+    """Return the route that can consume the Gmail-connected callback."""
+    if FRONTEND_URL.endswith("/dashboard/sweep"):
+        return FRONTEND_URL
+    return f"{FRONTEND_URL}/dashboard/sweep"
+
 app = FastAPI(
     title="Haq API",
     version="0.2.0",
@@ -226,9 +233,9 @@ def gmail_callback(
     """Exchange Google's authorization code server-side and return to the Pages app."""
     state_data = OAUTH_STATES.pop(state or "", None)
     if not state_data or time.time() - float(state_data["created_at"]) > 600:
-        return RedirectResponse(f"{FRONTEND_URL}/?gmail=error&reason=invalid_state", status_code=303)
+        return RedirectResponse(f"{_frontend_sweep_url()}?gmail=error&reason=invalid_state", status_code=303)
     if error or not code:
-        return RedirectResponse(f"{FRONTEND_URL}/?gmail=denied", status_code=303)
+        return RedirectResponse(f"{_frontend_sweep_url()}?gmail=denied", status_code=303)
     tokens = exchange_code_for_tokens(
         code,
         os.getenv("GOOGLE_CLIENT_ID", ""),
@@ -236,7 +243,7 @@ def gmail_callback(
         OAUTH_REDIRECT_URI,
     )
     if tokens.get("error") or not tokens.get("access_token"):
-        return RedirectResponse(f"{FRONTEND_URL}/?gmail=error&reason=token_exchange", status_code=303)
+        return RedirectResponse(f"{_frontend_sweep_url()}?gmail=error&reason=token_exchange", status_code=303)
     session_id = str(state_data["session_id"])
     GMAIL_SESSIONS[session_id] = {
         **tokens,
@@ -244,7 +251,7 @@ def gmail_callback(
         "last_seen": time.time(),
         "expires_at": time.time() + int(tokens.get("expires_in", 3600)),
     }
-    response = RedirectResponse(f"{FRONTEND_URL}/?gmail=connected", status_code=303)
+    response = RedirectResponse(f"{_frontend_sweep_url()}?gmail=connected", status_code=303)
     _set_session_cookie(response, session_id)
     return response
 

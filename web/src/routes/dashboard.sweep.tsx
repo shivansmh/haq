@@ -65,6 +65,7 @@ function SweepPage() {
     if (started.current) return;
     const params = new URLSearchParams(window.location.search);
     if (params.get("gmail") === "denied") setNotice("Google access was not granted. Nothing was scanned.");
+    if (params.get("gmail") === "error") setNotice("Gmail could not be connected. Nothing was scanned — please try again.");
     if (params.get("gmail") !== "connected") return;
     started.current = true;
     window.history.replaceState({}, "", window.location.pathname);

@@ -1,5 +1,6 @@
 from fastapi.testclient import TestClient
 
+import api.main as main
 from api.main import app
 
 client = TestClient(app)
@@ -61,3 +62,35 @@ def test_msme_unclaimed_and_claim_contracts() -> None:
     claim = client.post("/v1/claims/draft", json={"right_id": "R-001"})
     assert claim.status_code == 200
     assert claim.json()["stamp"] == "UNVERIFIED RULE"
+
+
+def test_gmail_callback_returns_to_dashboard_sweep(monkeypatch) -> None:
+    monkeypatch.setattr(main, "FRONTEND_URL", "https://shivansmh.github.io/haq")
+    main.OAUTH_STATES["test-state"] = {"session_id": "session-1", "created_at": main.time.time()}
+    monkeypatch.setattr(
+        main,
+        "exchange_code_for_tokens",
+        lambda *args: {"access_token": "access-token", "expires_in": 3600},
+    )
+
+    response = client.get(
+        "/v1/gmail/callback?code=oauth-code&state=test-state",
+        follow_redirects=False,
+    )
+
+    assert response.status_code == 303
+    assert response.headers["location"] == "https://shivansmh.github.io/haq/dashboard/sweep?gmail=connected"
+    assert "haq_session=" in response.headers["set-cookie"]
+
+
+def test_gmail_callback_does_not_duplicate_dashboard_path(monkeypatch) -> None:
+    monkeypatch.setattr(main, "FRONTEND_URL", "https://shivansmh.github.io/haq/dashboard/sweep")
+    main.OAUTH_STATES["test-state-2"] = {"session_id": "session-2", "created_at": main.time.time()}
+
+    response = client.get(
+        "/v1/gmail/callback?error=access_denied&state=test-state-2",
+        follow_redirects=False,
+    )
+
+    assert response.status_code == 303
+    assert response.headers["location"] == "https://shivansmh.github.io/haq/dashboard/sweep?gmail=denied"

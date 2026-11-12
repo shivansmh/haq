@@ -3,6 +3,7 @@ import { ArrowRight, ChevronDown, FileText, Inbox, Lock, Scale, ShieldCheck } fr
 import { Logo } from "@/components/Logo";
 import { SweepVisual } from "@/components/SweepVisual";
 import { Stripe } from "@/components/Stripe";
+import { useEffect } from "react";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -38,6 +39,17 @@ const FAQ = [
 ];
 
 function Home() {
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const gmail = params.get("gmail");
+    if (!gmail) return;
+    const query = new URLSearchParams({ gmail });
+    const reason = params.get("reason");
+    if (reason) query.set("reason", reason);
+    const base = window.location.pathname.replace(/\/$/, "");
+    window.location.replace(`${base}/dashboard/sweep?${query.toString()}`);
+  }, []);
+
   return (
     <div className="min-h-screen bg-background">
       <header className="sticky top-0 z-30 border-b border-border bg-background/90 backdrop-blur">
