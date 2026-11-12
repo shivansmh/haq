@@ -102,7 +102,12 @@
   --panel-muted: oklch(0.65 0.02 155);
   --panel-border: oklch(1 0 0 / 9%);
   --primary-glow: oklch(0.82 0.17 145);
-  --gradient-gold: linear-gradient(120deg, oklch(0.68 0.19 150), oklch(0.82 0.17 140) 50%, oklch(0.7 0.19 152));
+  --gradient-gold: linear-gradient(
+    120deg,
+    oklch(0.68 0.19 150),
+    oklch(0.82 0.17 140) 50%,
+    oklch(0.7 0.19 152)
+  );
   --shadow-panel: 0 30px 80px -20px oklch(0.2 0.08 155 / 55%);
   --chart-1: oklch(0.72 0.19 150);
   --chart-2: oklch(0.6 0.118 184.704);
@@ -158,23 +163,101 @@
   --shadow-panel: var(--shadow-panel);
 }
 
-@keyframes scanline { 0% { top: 0%; } 100% { top: 100%; } }
-@keyframes rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
-.animate-rise { animation: rise 0.5s cubic-bezier(.2,.8,.2,1) both; }
-.animate-scanline { animation: scanline 1.6s ease-in-out infinite alternate; }
+@keyframes scanline {
+  0% {
+    top: 0%;
+  }
+  100% {
+    top: 100%;
+  }
+}
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.animate-rise {
+  animation: rise 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+.animate-scanline {
+  animation: scanline 1.6s ease-in-out infinite alternate;
+}
 
-@keyframes marquee { from { transform: translateX(0); } to { transform: translateX(-50%); } }
-@keyframes sheen { from { background-position: 200% 0; } to { background-position: -200% 0; } }
-.animate-marquee { animation: marquee 28s linear infinite; }
-.animate-marquee-reverse { animation: marquee 34s linear infinite reverse; }
-@utility text-gold { background: var(--gradient-gold); background-size: 200% 100%; -webkit-background-clip: text; background-clip: text; color: transparent; animation: sheen 8s linear infinite; }
-@utility bg-gold { background-image: var(--gradient-gold); }
-@utility sweep-beam { background: linear-gradient(180deg, transparent, color-mix(in oklab, var(--primary) 16%, transparent) 45%, color-mix(in oklab, var(--primary-glow) 60%, transparent) 50%, color-mix(in oklab, var(--primary) 16%, transparent) 55%, transparent); }
-@media (prefers-reduced-motion: reduce) { .animate-marquee, .animate-marquee-reverse { animation: none; } }
+@keyframes marquee {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+@keyframes sheen {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: -200% 0;
+  }
+}
+.animate-marquee {
+  animation: marquee 28s linear infinite;
+}
+.animate-marquee-reverse {
+  animation: marquee 34s linear infinite reverse;
+}
+@utility text-gold {
+  background: var(--gradient-gold);
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: sheen 8s linear infinite;
+}
+@utility bg-gold {
+  background-image: var(--gradient-gold);
+}
+@utility sweep-beam {
+  background: linear-gradient(
+    180deg,
+    transparent,
+    color-mix(in oklab, var(--primary) 16%, transparent) 45%,
+    color-mix(in oklab, var(--primary-glow) 60%, transparent) 50%,
+    color-mix(in oklab, var(--primary) 16%, transparent) 55%,
+    transparent
+  );
+}
+@media (prefers-reduced-motion: reduce) {
+  .animate-marquee,
+  .animate-marquee-reverse {
+    animation: none;
+  }
+}
 
 @layer base {
   * {
     border-color: var(--color-border);
+  }
+
+  html,
+  body,
+  #root {
+    min-width: 0;
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+
+  html,
+  body {
+    margin: 0;
+  }
+
+  #root {
+    min-height: 100dvh;
   }
 
   body {
