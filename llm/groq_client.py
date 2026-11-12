@@ -10,7 +10,7 @@ from typing import Any, Callable
 import httpx
 
 from .client import LLMClient, LLMResponse
-from .models import ExtractionResult, LLMStatus, MessagePayload, TriageResult
+from .models import ExtractionResult, LedgerResult, LLMStatus, MessagePayload, TriageResult
 from .prompts import build_prompt
 from .validate import validate_extraction
 
@@ -159,6 +159,38 @@ EXTRACTION_SCHEMA: dict[str, Any] = {
 }
 
 
+LEDGER_SCHEMA: dict[str, Any] = {
+    "type": "object",
+    "additionalProperties": False,
+    "properties": {
+        "record_id": {"type": "string"},
+        "summary": {"type": "string"},
+        "merchant": {"type": ["string", "null"]},
+        "vertical": _strict_string_enum(
+            ["gaming", "ecommerce", "food_delivery", "travel", "utilities", "business", "finance", "other"]
+        ),
+        "segment": _strict_string_enum(["consumer", "business"]),
+        "labels": {"type": "array", "items": {"type": "string"}, "maxItems": 8},
+        "needs_review": {"type": "boolean"},
+        "review_reasons": {"type": "array", "items": {"type": "string"}, "maxItems": 10},
+        "model_version": {"type": "string"},
+    },
+    "required": [
+        "record_id",
+        "summary",
+        "merchant",
+        "vertical",
+        "segment",
+        "labels",
+        "needs_review",
+        "review_reasons",
+        "model_version",
+    ],
+}
+
+_PROMPT_FOR_TASK = {"triage": "triage_v1", "extract": "extract_v1", "ledger": "ledger_v1"}
+
+
 class GroqClient(LLMClient):
     """Server-side Groq adapter; it never logs prompts, responses, or API keys."""
 
@@ -169,6 +201,7 @@ class GroqClient(LLMClient):
         triage_model: str | None = None,
         extract_model: str | None = None,
         recheck_model: str | None = None,
+        ledger_model: str | None = None,
         base_url: str = GROQ_URL,
         timeout_seconds: float = DEFAULT_TIMEOUT_SECONDS,
         max_retries: int = DEFAULT_MAX_RETRIES,
@@ -182,6 +215,7 @@ class GroqClient(LLMClient):
             "triage": triage_model or os.getenv("LLM_MODEL_TRIAGE", "openai/gpt-oss-20b"),
             "extract": extract_model or os.getenv("LLM_MODEL_EXTRACT", "openai/gpt-oss-20b"),
             "recheck": recheck_model or os.getenv("LLM_MODEL_RECHECK", "openai/gpt-oss-20b"),
+            "ledger": ledger_model or os.getenv("LLM_MODEL_LEDGER", "openai/gpt-oss-20b"),
         }
         self.base_url = base_url
         self.timeout_seconds = timeout_seconds
@@ -211,6 +245,15 @@ class GroqClient(LLMClient):
         except Exception as exc:
             return LLMResponse(LLMStatus.INVALID_OUTPUT, error=type(exc).__name__)
 
+    def ledger(self, payload: MessagePayload) -> LLMResponse[LedgerResult]:
+        response = self._complete("ledger", payload, LEDGER_SCHEMA)
+        if response.llm_status != LLMStatus.OK or response.result is None:
+            return LLMResponse(response.llm_status, error=response.error)
+        try:
+            return LLMResponse(LLMStatus.OK, LedgerResult.model_validate(response.result))
+        except Exception as exc:
+            return LLMResponse(LLMStatus.INVALID_OUTPUT, error=type(exc).__name__)
+
     def _complete(self, task: str, payload: MessagePayload, schema: dict[str, Any]) -> LLMResponse[dict[str, Any]]:
         if not self.api_key:
             return LLMResponse(LLMStatus.UNAVAILABLE, error="provider key is not configured")
@@ -218,7 +261,7 @@ class GroqClient(LLMClient):
         pricing = PRICING.get(model)
         if pricing is None:
             return LLMResponse(LLMStatus.UNAVAILABLE, error="unsupported_model")
-        system = build_prompt("triage_v1" if task == "triage" else "extract_v1", "")
+        system = build_prompt(_PROMPT_FOR_TASK[task], "")
         request = {
             "model": model,
             "messages": [
@@ -278,4 +321,11 @@ class GroqClient(LLMClient):
         return LLMResponse(LLMStatus.UNAVAILABLE, error="provider_request_failed")
 
 
-__all__ = ["EXTRACTION_SCHEMA", "GroqClient", "SpendBudget", "SpendCapExceeded", "TRIAGE_SCHEMA"]
+__all__ = [
+    "EXTRACTION_SCHEMA",
+    "GroqClient",
+    "LEDGER_SCHEMA",
+    "SpendBudget",
+    "SpendCapExceeded",
+    "TRIAGE_SCHEMA",
+]

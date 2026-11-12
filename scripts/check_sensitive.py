@@ -13,6 +13,7 @@ EMAIL = re.compile(r"[\w.+-]+@[\w-]+\.[\w.]+")
 PHONE = re.compile(r"\b[6-9]\d{9}\b")
 ACCOUNT = re.compile(r"(?<!/)\b\d{9,18}\b(?!/)")
 IGNORED = {".git", ".venv", "__pycache__", ".pytest_cache", ".ruff_cache"}
+DEPENDENCY_LOCKFILES = {"bun.lock", "pnpm-lock.yaml"}
 
 
 def tracked_files() -> list[Path]:
@@ -41,7 +42,11 @@ def main() -> int:
     violations: list[str] = []
     files = tracked_files()
     for path in files:
-        if any(part in IGNORED for part in path.parts) or path.as_posix().startswith("data/real/"):
+        if (
+            any(part in IGNORED for part in path.parts)
+            or path.name in DEPENDENCY_LOCKFILES
+            or path.as_posix().startswith("data/real/")
+        ):
             continue
         try:
             text = path.read_text(encoding="utf-8")

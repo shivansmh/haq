@@ -18,7 +18,7 @@ def load_category_definitions(path: Path | None = None) -> dict[str, str]:
 
 
 def build_prompt(version: str, email: str, *, category_config: Path | None = None) -> str:
-    if version not in {"triage_v1", "extract_v1"}:
+    if version not in {"triage_v1", "extract_v1", "ledger_v1"}:
         raise ValueError(f"unsupported prompt version: {version}")
     template = (ROOT / f"{version}.txt").read_text(encoding="utf-8")
     definitions = "\n".join(f"- {key}: {value}" for key, value in load_category_definitions(category_config).items())

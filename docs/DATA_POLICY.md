@@ -8,6 +8,9 @@ Haq is a demo-grade, memory-only prototype. The repository may contain only synt
 - Request bodies, narrations, filenames and amounts must not be logged.
 - `data/real/` is ignored by Git and must remain empty in shared work.
 - T0 does not persist users, sessions, claims or files.
+- The flagged-record ledger is held in process memory, keyed by an opaque session id, and expires
+  with the Gmail session (one hour). It keeps only the redacted structured record, never an email
+  body. It caps the number of sessions and evicts the oldest first.
 
 ## Pre-commit protection
 

@@ -1,0 +1,150 @@
+{
+  "additionalProperties": false,
+  "description": "Compact per-email JSON so every flagged email has its own structured row.",
+  "properties": {
+    "schema_version": {
+      "const": "haq.email.v1",
+      "default": "haq.email.v1",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "email_id": {
+      "title": "Email Id",
+      "type": "string"
+    },
+    "record_id": {
+      "title": "Record Id",
+      "type": "string"
+    },
+    "role": {
+      "default": "other",
+      "enum": [
+        "debit",
+        "failure",
+        "refund",
+        "payment",
+        "cancellation",
+        "atm_failure",
+        "invoice",
+        "duplicate",
+        "other"
+      ],
+      "title": "Role",
+      "type": "string"
+    },
+    "duplicate": {
+      "default": false,
+      "title": "Duplicate",
+      "type": "boolean"
+    },
+    "duplicate_of": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Duplicate Of"
+    },
+    "cluster_size": {
+      "default": 1,
+      "minimum": 1,
+      "title": "Cluster Size",
+      "type": "integer"
+    },
+    "sender": {
+      "title": "Sender",
+      "type": "string"
+    },
+    "subject": {
+      "title": "Subject",
+      "type": "string"
+    },
+    "date": {
+      "anyOf": [
+        {
+          "format": "date",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Date"
+    },
+    "amount_paise": {
+      "anyOf": [
+        {
+          "minimum": 0,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Amount Paise"
+    },
+    "reference": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Reference"
+    },
+    "segment": {
+      "enum": [
+        "consumer",
+        "business"
+      ],
+      "title": "Segment",
+      "type": "string"
+    },
+    "vertical": {
+      "enum": [
+        "gaming",
+        "ecommerce",
+        "food_delivery",
+        "travel",
+        "utilities",
+        "business",
+        "finance",
+        "other"
+      ],
+      "title": "Vertical",
+      "type": "string"
+    },
+    "labels": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Labels",
+      "type": "array"
+    },
+    "needs_review": {
+      "default": false,
+      "title": "Needs Review",
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "email_id",
+    "record_id",
+    "sender",
+    "subject",
+    "segment",
+    "vertical"
+  ],
+  "title": "EmailFlag",
+  "type": "object",
+  "$id": "https://haq.example/schemas/haq.email.v1.schema.json"
+}

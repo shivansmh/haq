@@ -31,9 +31,12 @@ from urllib.error import HTTPError
 from cases.builder import build_cases
 from claims.pack import build_claim_pack
 from events.normalize import normalize_emails
+from ledger.build import build_flagged_records, project_email
+from ledger.summary import summarize_records
 from llm.client import LLMClient
 from llm.config import LLMSettings
 from llm.gmail_assistance import enrich_financial_emails
+from llm.ledger_assist import enrich_flagged_records
 from llm.redact import OAuthTokenDetected, redact_sensitive
 
 from .upi_signals import (
@@ -57,7 +60,7 @@ DATE_RE = re.compile(
     r"[a-z]*[\s,-]+(20\d{2})\b",
     re.IGNORECASE,
 )
-MAX_QUERY_LENGTH = 500
+MAX_QUERY_LENGTH = 1200
 MAX_FETCH_RESULTS = 5000
 GMAIL_WORKERS = 6  # parallel message reads; well inside Gmail's per-user quota
 REVERSAL_MATCH_WINDOW_DAYS = 30
@@ -71,7 +74,9 @@ DEFAULT_GMAIL_QUERY = (
     '(upi OR "payment failed" OR "transaction failed" OR "payment unsuccessful" OR debited '
     'OR reversal OR "refund initiated" OR "order cancelled" OR "order canceled" '
     'OR "has been cancelled" OR "could not be processed" OR "cash not dispensed" '
-    "OR overdue OR विफल OR रिफंड OR रद्द)"
+    'OR "in-app purchase" OR "battle pass" OR game OR gaming OR "top up" '
+    'OR invoice OR "purchase order" OR "remittance advice" OR overdue '
+    "OR विफल OR रिफंड OR रद्द)"
 )
 
 ProgressFn = Callable[..., None]
@@ -350,10 +355,12 @@ def _gmail_json(request: urllib.request.Request, *, timeout: float) -> dict[str,
 
 def get_demo_email_corpus() -> list[dict[str, Any]]:
     """Comprehensive synthetic inbox reflecting real Indian consumer and business transactions."""
-    demo_ref = "431209" + "845123"
+    demo_ref = "UPIREF-DEMO-001"
 
     def sender(local: str, domain: str) -> str:
-        return f"{local}@{domain}"
+        # Keep the shared demo fixture free of mailbox addresses while still
+        # exercising sender-domain classification.
+        return domain
 
     return [
         {
@@ -361,8 +368,8 @@ def get_demo_email_corpus() -> list[dict[str, Any]]:
             "sender": sender("alerts", "hdfcbank.net"),
             "subject": "Alert: Your HDFC Bank account was debited for UPI txn Rs 2,000.00",
             "date": "03 Nov 2026, 14:22",
-            "snippet": f"Rs 2,000.00 debited from account **9122 via UPI to SWIGGY. UPI Ref {demo_ref}. If not done by you, report to bank.",
-            "body": f"Dear Customer, Rs 2,000.00 has been debited from your account **9122 on 03-Nov-2026 towards UPI txn to SWIGGY. UPI Reference Number: {demo_ref}. If this was not authorized by you, call 1800-202-6161.",
+            "snippet": f"Rs 2,000.00 debited from account **XXXX via UPI to SWIGGY. UPI Ref {demo_ref}. If not done by you, report to bank.",
+            "body": f"Dear Customer, Rs 2,000.00 has been debited from your account **XXXX on 03-Nov-2026 towards UPI txn to SWIGGY. UPI Reference Number: {demo_ref}. If this was not authorized by you, contact your bank.",
             "is_real": True,
         },
         {
@@ -379,8 +386,8 @@ def get_demo_email_corpus() -> list[dict[str, Any]]:
             "sender": sender("alerts", "hdfcbank.net"),
             "subject": "Alert: Reversal credit of Rs 2,000.00 received in your account",
             "date": "09 Nov 2026, 11:05",
-            "snippet": f"Account **9122 credited with Rs 2,000.00 on 09-Nov-2026 by UPI Reversal / SWIGGY / {demo_ref}.",
-            "body": f"Dear Customer, account **9122 credited with Rs 2,000.00 on 09-Nov-2026 11:05:12 by UPI Reversal / SWIGGY / {demo_ref}. Available balance: Rs 20,420.00.",
+            "snippet": f"Account **XXXX credited with Rs 2,000.00 on 09-Nov-2026 by UPI Reversal / SWIGGY / {demo_ref}.",
+            "body": f"Dear Customer, account **XXXX credited with Rs 2,000.00 on 09-Nov-2026 11:05:12 by UPI Reversal / SWIGGY / {demo_ref}. Available balance: Rs 20,420.00.",
             "is_real": True,
         },
         {
@@ -437,6 +444,56 @@ def get_demo_email_corpus() -> list[dict[str, Any]]:
             "body": "Package delivery confirmation for Order #402-9912039-11203. Handed to customer.",
             "is_real": False,
         },
+        # A duplicate bank alert: same ref, amount and date as msg-001. It must fold
+        # into the same record instead of becoming a second claim.
+        {
+            "id": "msg-010",
+            "sender": sender("alerts", "hdfcbank.net"),
+            "subject": "Alert: Your HDFC Bank account was debited for UPI txn Rs 2,000.00",
+            "date": "03 Nov 2026, 14:22",
+            "snippet": f"Rs 2,000.00 debited from account **XXXX via UPI to SWIGGY. UPI Ref {demo_ref}.",
+            "body": f"Dear Customer, Rs 2,000.00 has been debited from your account **XXXX on 03-Nov-2026 towards UPI txn to SWIGGY. UPI Reference Number: {demo_ref}.",
+            "is_real": True,
+        },
+        # Gaming / in-app purchase path: debit, failed purchase and a refund.
+        {
+            "id": "msg-011",
+            "sender": sender("alerts", "hdfcbank.net"),
+            "subject": "Alert: UPI debit of Rs 1,299.00 for STEAM purchase",
+            "date": "05 Nov 2026, 21:14",
+            "snippet": "Rs 1,299.00 debited via UPI to STEAM. UPI Ref UPIREF-DEMO-002.",
+            "body": "Dear Customer, Rs 1,299.00 has been debited from your account **XXXX on 05-Nov-2026 towards UPI txn to STEAM. UPI Reference Number: UPIREF-DEMO-002.",
+            "is_real": True,
+        },
+        {
+            "id": "msg-012",
+            "sender": sender("support", "steampowered.com"),
+            "subject": "Purchase failed: Steam wallet top-up of Rs 1,299",
+            "date": "05 Nov 2026, 21:15",
+            "snippet": "Your Steam wallet top-up failed. Any debited amount will be reversed.",
+            "body": "Your in-app purchase of Rs 1,299 for a Steam wallet top-up failed at the payment provider. The debited amount will be reversed automatically.",
+            "is_real": True,
+        },
+        {
+            "id": "msg-013",
+            "sender": sender("alerts", "hdfcbank.net"),
+            "subject": "Alert: Reversal credit of Rs 1,299.00 received",
+            "date": "12 Nov 2026, 09:02",
+            "snippet": "Account **XXXX credited with Rs 1,299.00 by UPI Reversal / STEAM / UPIREF-DEMO-002.",
+            "body": "Dear Customer, account **XXXX credited with Rs 1,299.00 on 12-Nov-2026 by UPI Reversal / STEAM / UPIREF-DEMO-002.",
+            "is_real": True,
+        },
+        # Business path: the buyer confirms the overdue invoice was paid, so the
+        # ledger can close the record and keep the payment evidence.
+        {
+            "id": "msg-014",
+            "sender": sender("accounts", "techbuyer-corp.in"),
+            "subject": "Payment received: Invoice #MSME-2026-441",
+            "date": "10 Nov 2026, 12:40",
+            "snippet": "Remittance advice: payment of Rs 1,42,800.00 for Invoice #MSME-2026-441 has been received.",
+            "body": "Dear Shivansh, this is a remittance advice confirming that payment of Rs 1,42,800.00 against Invoice #MSME-2026-441 has been received by our accounts team and settled on 10-Nov-2026.",
+            "is_real": True,
+        },
     ]
 
 
@@ -462,6 +519,7 @@ _NARRATION = {
     "order_cancelled": "Order cancelled; refund not confirmed in this message",
     "atm_failure": "ATM withdrawal failed",
     "overdue_invoice": "Invoice marked overdue",
+    "invoice_paid": "Invoice payment confirmation",
     "debit": "Debit followed by a matching reversal",
 }
 
@@ -476,11 +534,13 @@ def filter_and_extract_transactions(
     audited_emails: list[dict[str, Any]] = []
     items: list[dict[str, Any]] = []
     tier_by_id: dict[str, str] = {}
+    signals_by_id: dict[str, Any] = {}
 
     for msg in raw_messages:
         signal = classify_message(
             msg.get("sender", ""), msg.get("subject", ""), msg.get("snippet", ""), msg.get("body", "")
         )
+        signals_by_id[str(msg.get("id", ""))] = signal
         tier_by_id[str(msg.get("id", ""))] = signal.sender_tier
         if signal.is_noise:
             audited_emails.append(
@@ -491,6 +551,7 @@ def filter_and_extract_transactions(
             {
                 **msg,
                 "kind": signal.kind,
+                "signal_kind": signal.kind,
                 "channel": signal.channel,
                 "amount_paise": signal.amount_paise,
                 "ref": signal.ref,
@@ -613,13 +674,43 @@ def filter_and_extract_transactions(
             vetoed.add(str(email["id"]))
     candidates = [c for c in candidates if c["txn_id"].removeprefix("gmail-") not in vetoed]
 
+    settings = llm_settings or LLMSettings()
     domain_messages = [
         message for message in raw_messages
         if str(message.get("id", "")) not in vetoed
     ]
-    cases = build_cases(normalize_emails(domain_messages))
+    # One classification pass: events reuse the signals computed above instead of
+    # re-parsing every subject/body. Cases still group related emails.
+    events = normalize_emails(domain_messages, signals_by_id)
+    cases = build_cases(events)
     case_payloads = [case.model_dump(mode="json") for case in cases]
     claim_packs = [build_claim_pack(case) for case in cases if case.worth_review or case.status == "open"]
+
+    # A structured record per transaction/invoice, with refund tracking and labels.
+    records = build_flagged_records(cases)
+    records, ledger_status = enrich_flagged_records(records, client=llm_client, settings=settings)
+    record_payloads = [record.model_dump(mode="json") for record in records]
+    record_by_email: dict[str, Any] = {}
+    for record in records:
+        for item in record.evidence:
+            record_by_email.setdefault(item.email_id, record)
+    for email in safe_emails:
+        email_id = str(email.get("id", ""))
+        record = record_by_email.get(email_id)
+        if record is None:
+            email.update(record_id=None, cluster_size=0, duplicate_of=None)
+            continue
+        projection = project_email(record, email_id)
+        email.update(
+            record_id=record.record_id,
+            cluster_size=len(record.evidence),
+            duplicate_of=next(
+                (item.duplicate_of for item in record.evidence if item.email_id == email_id),
+                None,
+            ),
+        )
+        if projection is not None:
+            email["structured"] = projection.model_dump(mode="json")
 
     rank = {"violation_detected": 0, "financial_alert": 1, "noise": 2}
     safe_emails.sort(key=lambda email: rank.get(email["status"], 3))  # stable: newest-first within a group
@@ -634,7 +725,15 @@ def filter_and_extract_transactions(
         "candidates": candidates,
         "cases": case_payloads,
         "claim_packs": claim_packs,
+        "flagged_records": record_payloads,
+        "ledger": {
+            "schema_version": "haq.ledger.v1",
+            "records": record_payloads,
+            "summary": summarize_records(record_payloads),
+            "ai_status": ledger_status,
+        },
         "llm_status": llm_status,
+        "ledger_ai_status": ledger_status,
         "ai_assisted_count": sum(
             email.get("llm_assistance", {}).get("status") == "ok" for email in safe_emails
         ),

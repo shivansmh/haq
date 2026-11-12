@@ -23,8 +23,10 @@ class LLMSettings:
     triage_model: str = "openai/gpt-oss-20b"
     extract_model: str = "openai/gpt-oss-20b"
     recheck_model: str = "openai/gpt-oss-20b"
+    ledger_model: str = "openai/gpt-oss-20b"
     triage_enabled: bool = True
     audit_sample_rate: float = 0.02
+    max_records_per_sweep: int = 25
 
 
 def _read_bool(raw: str, name: str) -> bool:
@@ -104,8 +106,12 @@ def load_settings(environ: Mapping[str, str] | None = None) -> LLMSettings:
         triage_model=source.get("LLM_MODEL_TRIAGE", "openai/gpt-oss-20b").strip(),
         extract_model=source.get("LLM_MODEL_EXTRACT", "openai/gpt-oss-20b").strip(),
         recheck_model=source.get("LLM_MODEL_RECHECK", "openai/gpt-oss-20b").strip(),
+        ledger_model=source.get("LLM_MODEL_LEDGER", "openai/gpt-oss-20b").strip(),
         triage_enabled=_read_bool(source.get("LLM_TRIAGE_ENABLED", "true"), "LLM_TRIAGE_ENABLED"),
         audit_sample_rate=_read_rate(source.get("SWEEP_AUDIT_SAMPLE_RATE", "0.02"), "SWEEP_AUDIT_SAMPLE_RATE"),
+        max_records_per_sweep=_read_positive_int(
+            source.get("LLM_MAX_RECORDS_PER_SWEEP", "25"), "LLM_MAX_RECORDS_PER_SWEEP"
+        ),
     )
     if settings.enabled and settings.api_key is None:
         raise ValueError("GROQ_API_KEY is required when LLM_ENABLED=true")

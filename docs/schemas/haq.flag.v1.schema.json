@@ -1,0 +1,785 @@
+{
+  "$defs": {
+    "AIEnrichment": {
+      "additionalProperties": false,
+      "properties": {
+        "status": {
+          "default": "disabled",
+          "title": "Status",
+          "type": "string"
+        },
+        "model": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Model"
+        },
+        "summary": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Summary"
+        },
+        "merchant": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Merchant"
+        },
+        "vertical": {
+          "anyOf": [
+            {
+              "enum": [
+                "gaming",
+                "ecommerce",
+                "food_delivery",
+                "travel",
+                "utilities",
+                "business",
+                "finance",
+                "other"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Vertical"
+        },
+        "segment": {
+          "anyOf": [
+            {
+              "enum": [
+                "consumer",
+                "business"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Segment"
+        },
+        "labels": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Labels",
+          "type": "array"
+        },
+        "conflicts": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Conflicts",
+          "type": "array"
+        },
+        "needs_review": {
+          "default": false,
+          "title": "Needs Review",
+          "type": "boolean"
+        }
+      },
+      "title": "AIEnrichment",
+      "type": "object"
+    },
+    "Compensation": {
+      "additionalProperties": false,
+      "properties": {
+        "computed": {
+          "default": false,
+          "title": "Computed",
+          "type": "boolean"
+        },
+        "amount_paise": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Amount Paise"
+        },
+        "indicative_paise": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Indicative Paise"
+        },
+        "daily_rate_paise": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Daily Rate Paise"
+        },
+        "note": {
+          "title": "Note",
+          "type": "string"
+        }
+      },
+      "required": [
+        "note"
+      ],
+      "title": "Compensation",
+      "type": "object"
+    },
+    "EvidenceEmail": {
+      "additionalProperties": false,
+      "properties": {
+        "email_id": {
+          "title": "Email Id",
+          "type": "string"
+        },
+        "role": {
+          "default": "other",
+          "enum": [
+            "debit",
+            "failure",
+            "refund",
+            "payment",
+            "cancellation",
+            "atm_failure",
+            "invoice",
+            "duplicate",
+            "other"
+          ],
+          "title": "Role",
+          "type": "string"
+        },
+        "duplicate": {
+          "default": false,
+          "title": "Duplicate",
+          "type": "boolean"
+        },
+        "duplicate_of": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Duplicate Of"
+        },
+        "date": {
+          "anyOf": [
+            {
+              "format": "date",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Date"
+        },
+        "sender": {
+          "title": "Sender",
+          "type": "string"
+        },
+        "subject": {
+          "title": "Subject",
+          "type": "string"
+        },
+        "quote": {
+          "title": "Quote",
+          "type": "string"
+        },
+        "amount_paise": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Amount Paise"
+        },
+        "reference": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Reference"
+        }
+      },
+      "required": [
+        "email_id",
+        "sender",
+        "subject",
+        "quote"
+      ],
+      "title": "EvidenceEmail",
+      "type": "object"
+    },
+    "LegalAssessment": {
+      "additionalProperties": false,
+      "properties": {
+        "rule_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Rule Id"
+        },
+        "rule_status": {
+          "default": "None",
+          "title": "Rule Status",
+          "type": "string"
+        },
+        "rule_verified": {
+          "default": false,
+          "title": "Rule Verified",
+          "type": "boolean"
+        },
+        "stamp": {
+          "default": "NO RULE",
+          "enum": [
+            "VERIFIED RULE",
+            "UNVERIFIED RULE",
+            "NO RULE"
+          ],
+          "title": "Stamp",
+          "type": "string"
+        },
+        "statutory_days": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Statutory Days"
+        },
+        "deadline_date": {
+          "anyOf": [
+            {
+              "format": "date",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Deadline Date"
+        },
+        "indicative_deadline_date": {
+          "anyOf": [
+            {
+              "format": "date",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Indicative Deadline Date"
+        },
+        "days_overdue": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Days Overdue"
+        },
+        "compliance": {
+          "default": "unknown",
+          "enum": [
+            "on_time",
+            "late",
+            "received_rule_unverified",
+            "not_due_yet",
+            "not_received_past_deadline",
+            "not_received_rule_unverified",
+            "unknown"
+          ],
+          "title": "Compliance",
+          "type": "string"
+        },
+        "compliance_label": {
+          "title": "Compliance Label",
+          "type": "string"
+        },
+        "compensation": {
+          "$ref": "#/$defs/Compensation"
+        },
+        "citation": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Citation"
+        },
+        "note": {
+          "title": "Note",
+          "type": "string"
+        }
+      },
+      "required": [
+        "compliance_label",
+        "compensation",
+        "note"
+      ],
+      "title": "LegalAssessment",
+      "type": "object"
+    },
+    "Money": {
+      "additionalProperties": false,
+      "properties": {
+        "value_paise": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Value Paise"
+        },
+        "currency": {
+          "const": "INR",
+          "default": "INR",
+          "title": "Currency",
+          "type": "string"
+        },
+        "display": {
+          "title": "Display",
+          "type": "string"
+        }
+      },
+      "required": [
+        "display"
+      ],
+      "title": "Money",
+      "type": "object"
+    },
+    "Resolution": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "default": "none",
+          "enum": [
+            "refund",
+            "reversal",
+            "cash",
+            "payment",
+            "none"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "received": {
+          "default": false,
+          "title": "Received",
+          "type": "boolean"
+        },
+        "received_on": {
+          "anyOf": [
+            {
+              "format": "date",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Received On"
+        },
+        "days_to_resolution": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Days To Resolution"
+        },
+        "evidence_email_ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Evidence Email Ids",
+          "type": "array"
+        },
+        "label": {
+          "title": "Label",
+          "type": "string"
+        }
+      },
+      "required": [
+        "label"
+      ],
+      "title": "Resolution",
+      "type": "object"
+    },
+    "TimelineItem": {
+      "additionalProperties": false,
+      "properties": {
+        "date": {
+          "anyOf": [
+            {
+              "format": "date",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Date"
+        },
+        "event": {
+          "title": "Event",
+          "type": "string"
+        },
+        "email_id": {
+          "title": "Email Id",
+          "type": "string"
+        },
+        "amount_paise": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Amount Paise"
+        }
+      },
+      "required": [
+        "event",
+        "email_id"
+      ],
+      "title": "TimelineItem",
+      "type": "object"
+    },
+    "Tracking": {
+      "additionalProperties": false,
+      "properties": {
+        "first_seen_at": {
+          "format": "date-time",
+          "title": "First Seen At",
+          "type": "string"
+        },
+        "last_seen_at": {
+          "format": "date-time",
+          "title": "Last Seen At",
+          "type": "string"
+        },
+        "sweep_count": {
+          "default": 1,
+          "minimum": 1,
+          "title": "Sweep Count",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "first_seen_at",
+        "last_seen_at"
+      ],
+      "title": "Tracking",
+      "type": "object"
+    },
+    "TransactionInfo": {
+      "additionalProperties": false,
+      "properties": {
+        "reference": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Reference"
+        },
+        "channel": {
+          "default": "",
+          "title": "Channel",
+          "type": "string"
+        },
+        "merchant": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Merchant"
+        },
+        "origin_date": {
+          "anyOf": [
+            {
+              "format": "date",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Origin Date"
+        },
+        "origin_email_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Origin Email Id"
+        }
+      },
+      "title": "TransactionInfo",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "One transaction or invoice, with every related email and its outcome.",
+  "properties": {
+    "schema_version": {
+      "const": "haq.flag.v1",
+      "default": "haq.flag.v1",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "record_id": {
+      "title": "Record Id",
+      "type": "string"
+    },
+    "identity_keys": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Identity Keys",
+      "type": "array"
+    },
+    "case_id": {
+      "title": "Case Id",
+      "type": "string"
+    },
+    "title": {
+      "title": "Title",
+      "type": "string"
+    },
+    "claim_type": {
+      "title": "Claim Type",
+      "type": "string"
+    },
+    "category_label": {
+      "title": "Category Label",
+      "type": "string"
+    },
+    "segment": {
+      "enum": [
+        "consumer",
+        "business"
+      ],
+      "title": "Segment",
+      "type": "string"
+    },
+    "vertical": {
+      "enum": [
+        "gaming",
+        "ecommerce",
+        "food_delivery",
+        "travel",
+        "utilities",
+        "business",
+        "finance",
+        "other"
+      ],
+      "title": "Vertical",
+      "type": "string"
+    },
+    "status": {
+      "enum": [
+        "action_needed",
+        "tracking",
+        "resolved",
+        "reference_only"
+      ],
+      "title": "Status",
+      "type": "string"
+    },
+    "status_label": {
+      "title": "Status Label",
+      "type": "string"
+    },
+    "amount": {
+      "$ref": "#/$defs/Money"
+    },
+    "transaction": {
+      "$ref": "#/$defs/TransactionInfo"
+    },
+    "resolution": {
+      "$ref": "#/$defs/Resolution"
+    },
+    "legal": {
+      "$ref": "#/$defs/LegalAssessment"
+    },
+    "labels": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Labels",
+      "type": "array"
+    },
+    "risk_flags": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Risk Flags",
+      "type": "array"
+    },
+    "evidence": {
+      "items": {
+        "$ref": "#/$defs/EvidenceEmail"
+      },
+      "title": "Evidence",
+      "type": "array"
+    },
+    "timeline": {
+      "items": {
+        "$ref": "#/$defs/TimelineItem"
+      },
+      "title": "Timeline",
+      "type": "array"
+    },
+    "recommended_actions": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Recommended Actions",
+      "type": "array"
+    },
+    "ai": {
+      "$ref": "#/$defs/AIEnrichment"
+    },
+    "tracking": {
+      "$ref": "#/$defs/Tracking"
+    },
+    "needs_review": {
+      "default": false,
+      "title": "Needs Review",
+      "type": "boolean"
+    },
+    "safety_note": {
+      "default": "Haq reports what the linked rule says. This is an evidence record, not legal advice.",
+      "title": "Safety Note",
+      "type": "string"
+    }
+  },
+  "required": [
+    "record_id",
+    "case_id",
+    "title",
+    "claim_type",
+    "category_label",
+    "segment",
+    "vertical",
+    "status",
+    "status_label",
+    "amount",
+    "transaction",
+    "resolution",
+    "legal",
+    "tracking"
+  ],
+  "title": "FlaggedRecord",
+  "type": "object",
+  "$id": "https://haq.example/schemas/haq.flag.v1.schema.json"
+}

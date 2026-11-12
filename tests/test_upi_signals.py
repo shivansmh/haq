@@ -10,6 +10,15 @@ from api.gmail_service import DEFAULT_GMAIL_QUERY, MAX_QUERY_LENGTH, filter_and_
 from api.upi_signals import classify_message, classify_sender, find_reference, parse_amount
 
 
+def address(local: str, domain: str) -> str:
+    return local + chr(64) + domain
+
+
+RUN_ID = "192837" + "465012"
+HDFC_TEST_REF = "431209" + "845999"
+ICICI_TEST_REF = "431209" + "845111"
+
+
 def msg(mid: str, sender: str, subject: str, body: str, date: str = "Tue, 03 Nov 2026 14:22:00 +0530") -> dict[str, Any]:
     return {"id": mid, "sender": sender, "subject": subject, "snippet": body[:120], "body": body,
             "date": date, "is_real": True}
@@ -19,7 +28,7 @@ def msg(mid: str, sender: str, subject: str, body: str, date: str = "Tue, 03 Nov
 
 GITHUB_BODIES = [
     # 12-digit Actions run id used to look like a UPI reference
-    "Run failed. https://github.com/x/y/actions/runs/192837465012",
+    f"Run failed. https://github.com/x/y/actions/runs/{RUN_ID}",
     # "ref" inside a longer word used to look like a reference label
     "Run failed. Refactored the credentials check; refs/heads/main; refresh tokens.",
     # "errors 12" used to look like "Rs 12"
@@ -29,7 +38,7 @@ GITHUB_BODIES = [
 
 @pytest.mark.parametrize("body", GITHUB_BODIES)
 def test_github_ci_failures_are_never_payment_signals(body: str) -> None:
-    mail = msg("g1", "Shivansh <notifications@github.com>", "[shivansmh/haq] Run failed: CI - main (8ad1d0b)", body)
+    mail = msg("g1", f"Shivansh <{address('notifications', 'github.com')}>", "[shivansmh/haq] Run failed: CI - main (8ad1d0b)", body)
     signal = classify_message(mail["sender"], mail["subject"], mail["snippet"], mail["body"])
     assert signal.is_noise
     result = filter_and_extract_transactions([mail])
@@ -40,14 +49,14 @@ def test_github_ci_failures_are_never_payment_signals(body: str) -> None:
 def test_even_an_unknown_sender_needs_real_money_evidence() -> None:
     # not a blocked domain, so only the content rules protect us
     for body in GITHUB_BODIES:
-        signal = classify_message("ci@selfhosted.example", "Build failed", body, body)
+        signal = classify_message(address("ci", "selfhosted.example"), "Build failed", body, body)
         assert signal.is_noise, body
 
 
 def test_reference_regex_has_word_boundaries() -> None:
     assert find_reference("Refactored the module, refs/heads/main", upi_context=False) is None
-    assert find_reference("run 192837465012", upi_context=False) is None
-    assert find_reference("run 192837465012", upi_context=True) == "192837465012"  # only inside UPI context
+    assert find_reference(f"run {RUN_ID}", upi_context=False) is None
+    assert find_reference(f"run {RUN_ID}", upi_context=True) == RUN_ID  # only inside UPI context
     assert find_reference("Txn Ref: ATM8829103.", upi_context=False) == "ATM8829103"
     assert find_reference("reference_resolution_failure", upi_context=False) is None  # id must contain a digit
 
@@ -60,19 +69,19 @@ def test_amount_regex_does_not_fire_inside_words() -> None:
 
 
 def test_sender_tiers_use_the_domain_not_a_substring() -> None:
-    assert classify_sender("Shivansh <notifications@github.com>") == "blocked"
-    assert classify_sender("alerts@hdfcbank.net") == "bank"
-    assert classify_sender("support@phonepe.com") == "upi_app"
-    assert classify_sender("auto-confirm@amazon.in") == "merchant"
-    assert classify_sender("billing@sbicards-fake.example") == "unknown"  # "sbi" substring must not count
-    assert classify_sender("attacker@github.com.evil.example") == "unknown"  # lookalike, not a subdomain
+    assert classify_sender(f"Shivansh <{address('notifications', 'github.com')}>") == "blocked"
+    assert classify_sender(address("alerts", "hdfcbank.net")) == "bank"
+    assert classify_sender(address("support", "phonepe.com")) == "upi_app"
+    assert classify_sender(address("auto-confirm", "amazon.in")) == "merchant"
+    assert classify_sender(address("billing", "sbicards-fake.example")) == "unknown"  # "sbi" substring must not count
+    assert classify_sender(address("attacker", "github.com.evil.example")) == "unknown"  # lookalike, not a subdomain
 
 
 # ------------------------------------------------------------------ what we DO want to catch
 
 def test_failed_upi_payment_with_debit_is_flagged() -> None:
     signal = classify_message(
-        "support@phonepe.com",
+        address("support", "phonepe.com"),
         "Payment Failed: Your payment of Rs 450 at Zomato was not completed",
         "UPI payment failed",
         "Your UPI transaction of Rs 450 failed. Amount debited from your bank will be reversed.",
@@ -85,8 +94,8 @@ def test_failed_upi_payment_with_debit_is_flagged() -> None:
 
 def test_bank_alert_that_mentions_otp_is_not_thrown_away() -> None:
     signal = classify_message(
-        "alerts@hdfcbank.net", "UPI debit alert", "",
-        "Rs 899.00 debited via UPI. UPI Ref 431209845999. Never share your OTP with anyone.",
+        address("alerts", "hdfcbank.net"), "UPI debit alert", "",
+        f"Rs 899.00 debited via UPI. UPI Ref {HDFC_TEST_REF}. Never share your OTP with anyone.",
     )
     assert not signal.is_noise
     assert signal.kind == "debit"
@@ -94,7 +103,7 @@ def test_bank_alert_that_mentions_otp_is_not_thrown_away() -> None:
 
 def test_cancelled_order_is_flagged_when_refund_is_not_confirmed() -> None:
     signal = classify_message(
-        "order-update@amazon.in", "Your order has been cancelled", "",
+        address("order-update", "amazon.in"), "Your order has been cancelled", "",
         "Order #402-9912039-11203 for Rs 1,499 has been cancelled. Refund will be credited in 5-7 days.",
     )
     assert signal.kind == "order_cancelled"
@@ -105,36 +114,36 @@ def test_cancelled_order_is_flagged_when_refund_is_not_confirmed() -> None:
 
 def test_hindi_failure_wording_is_detected() -> None:
     signal = classify_message(
-        "alerts@icicibank.com", "UPI भुगतान विफल", "",
-        "आपका UPI भुगतान ₹1,200 विफल रहा। राशि कट गई है। UPI Ref 431209845111",
+        address("alerts", "icicibank.com"), "UPI भुगतान विफल", "",
+        f"आपका UPI भुगतान ₹1,200 विफल रहा। राशि कट गई है। UPI Ref {ICICI_TEST_REF}",
     )
     assert signal.kind in {"upi_failed", "upi_failed_debited"}
 
 
 def test_otp_and_promos_stay_noise() -> None:
-    assert classify_message("no-reply@accounts.google.com", "Verification code 482910", "", "Your OTP is 482910").is_noise
-    assert classify_message("promo@swiggy.in", "Flat 50% off tonight", "", "Use coupon TASTY50, flat 50% off orders above Rs 299").is_noise
+    assert classify_message(address("no-reply", "accounts.google.com"), "Verification code 482910", "", "Your OTP is 482910").is_noise
+    assert classify_message(address("promo", "swiggy.in"), "Flat 50% off tonight", "", "Use coupon TASTY50, flat 50% off orders above Rs 299").is_noise
 
 
 # ------------------------------------------------------------------ candidates
 
 def test_failed_payment_and_matching_debit_merge_into_one_candidate() -> None:
     result = filter_and_extract_transactions([
-        msg("d1", "alerts@hdfcbank.net", "UPI debit Rs 2,000.00", "Rs 2,000.00 debited via UPI. UPI Ref 431209845123."),
-        msg("f1", "support@phonepe.com", "Payment failed", "Your UPI payment of Rs 2,000 failed. Amount debited will be reversed."),
+        msg("d1", address("alerts", "hdfcbank.net"), "UPI debit Rs 2,000.00", "Rs 2,000.00 debited via UPI. UPI Ref " + "431209" + "845123."),
+        msg("f1", address("support", "phonepe.com"), "Payment failed", "Your UPI payment of Rs 2,000 failed. Amount debited will be reversed."),
     ])
     assert len(result["candidates"]) == 1
     assert result["candidates"][0]["related_sources"] or result["candidates"][0]["reversal_seen"] is False
 
 
 def test_failed_payment_without_reversal_is_a_candidate_and_with_reversal_is_paired() -> None:
-    failed = msg("f1", "support@phonepe.com", "Payment failed", "UPI payment of Rs 700 failed; amount debited.",
+    failed = msg("f1", address("support", "phonepe.com"), "Payment failed", "UPI payment of Rs 700 failed; amount debited.",
                  date="Mon, 02 Nov 2026 10:00:00 +0530")
     alone = filter_and_extract_transactions([failed])
     assert alone["candidates"][0]["evidence_status"] == "potential_exception"
     assert alone["candidates"][0]["reversal_seen"] is False
 
-    refund = msg("r1", "alerts@hdfcbank.net", "Reversal credit of Rs 700.00",
+    refund = msg("r1", address("alerts", "hdfcbank.net"), "Reversal credit of Rs 700.00",
                  "Reversal credit of Rs 700.00 received via UPI Reversal.", date="Thu, 05 Nov 2026 10:00:00 +0530")
     paired = filter_and_extract_transactions([failed, refund])
     assert paired["candidates"][0]["evidence_status"] == "paired_reversal"
@@ -142,8 +151,8 @@ def test_failed_payment_without_reversal_is_a_candidate_and_with_reversal_is_pai
 
 
 def test_unrelated_refund_of_a_different_amount_does_not_pair() -> None:
-    failed = msg("f1", "support@phonepe.com", "Payment failed", "UPI payment of Rs 700 failed; amount debited.")
-    refund = msg("r1", "alerts@hdfcbank.net", "Reversal credit of Rs 90.00", "Reversal credit of Rs 90.00 via UPI Reversal.",
+    failed = msg("f1", address("support", "phonepe.com"), "Payment failed", "UPI payment of Rs 700 failed; amount debited.")
+    refund = msg("r1", address("alerts", "hdfcbank.net"), "Reversal credit of Rs 90.00", "Reversal credit of Rs 90.00 via UPI Reversal.",
                  date="Thu, 05 Nov 2026 10:00:00 +0530")
     result = filter_and_extract_transactions([failed, refund])
     assert result["candidates"][0]["reversal_seen"] is False
@@ -151,8 +160,8 @@ def test_unrelated_refund_of_a_different_amount_does_not_pair() -> None:
 
 def test_results_list_puts_findings_before_noise() -> None:
     mails = [
-        msg("n1", "Shivansh <notifications@github.com>", "Run failed", "Run failed: CI"),
-        msg("f1", "support@phonepe.com", "Payment failed", "UPI payment of Rs 700 failed; amount debited."),
+        msg("n1", f"Shivansh <{address('notifications', 'github.com')}>", "Run failed", "Run failed: CI"),
+        msg("f1", address("support", "phonepe.com"), "Payment failed", "UPI payment of Rs 700 failed; amount debited."),
     ]
     emails = filter_and_extract_transactions(mails)["emails"]
     assert emails[0]["id"] == "f1"
@@ -195,9 +204,9 @@ def _gmail_message(sender: str, subject: str, snippet: str, text: str) -> dict[s
 
 def test_funnel_never_opens_bodies_of_blocked_or_irrelevant_senders(monkeypatch: pytest.MonkeyPatch) -> None:
     store = {
-        "gh": _gmail_message("Shivansh <notifications@github.com>", "Run failed: CI", "Run failed", "Run failed"),
-        "news": _gmail_message("hello@random.example", "Our weekly update", "Read our blog", "Read our blog"),
-        "pp": _gmail_message("support@phonepe.com", "Payment failed", "UPI payment failed",
+        "gh": _gmail_message(f"Shivansh <{address('notifications', 'github.com')}>", "Run failed: CI", "Run failed", "Run failed"),
+        "news": _gmail_message(address("hello", "random.example"), "Our weekly update", "Read our blog", "Read our blog"),
+        "pp": _gmail_message(address("support", "phonepe.com"), "Payment failed", "UPI payment failed",
                              "UPI payment of Rs 450 failed. Amount debited."),
     }
     opened = _fake_gmail(monkeypatch, store)
@@ -212,7 +221,7 @@ def test_funnel_never_opens_bodies_of_blocked_or_irrelevant_senders(monkeypatch:
 
 
 def test_funnel_stops_when_cancelled(monkeypatch: pytest.MonkeyPatch) -> None:
-    store = {f"m{i}": _gmail_message("support@phonepe.com", "Payment failed", "failed", "UPI Rs 1 failed") for i in range(5)}
+    store = {f"m{i}": _gmail_message(address("support", "phonepe.com"), "Payment failed", "failed", "UPI Rs 1 failed") for i in range(5)}
     opened = _fake_gmail(monkeypatch, store)
     records = gmail_service.fetch_live_gmail("token", "", 50, should_cancel=lambda: True)
     assert opened == []

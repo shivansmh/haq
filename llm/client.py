@@ -11,6 +11,9 @@ from .models import (
     ExtractionResult,
     FieldStatus,
     FieldWithQuote,
+    LedgerResult,
+    LedgerSegment,
+    LedgerVertical,
     LLMStatus,
     MessagePayload,
     Relevance,
@@ -41,12 +44,19 @@ class LLMClient(ABC):
     def extract(self, payload: MessagePayload) -> LLMResponse[ExtractionResult]:
         """Extract quoted evidence from one already-prefiltered message."""
 
+    @abstractmethod
+    def ledger(self, payload: MessagePayload) -> LLMResponse[LedgerResult]:
+        """Suggest human-readable labels for one deterministic flagged record."""
+
 
 class DisabledClient(LLMClient):
     def triage(self, payload: MessagePayload) -> LLMResponse[TriageResult]:
         return LLMResponse(llm_status=LLMStatus.DISABLED)
 
     def extract(self, payload: MessagePayload) -> LLMResponse[ExtractionResult]:
+        return LLMResponse(llm_status=LLMStatus.DISABLED)
+
+    def ledger(self, payload: MessagePayload) -> LLMResponse[LedgerResult]:
         return LLMResponse(llm_status=LLMStatus.DISABLED)
 
 
@@ -103,6 +113,24 @@ class FakeClient(LLMClient):
         except ValueError as exc:
             return LLMResponse(llm_status=LLMStatus.INVALID_OUTPUT, error=str(exc))
         return LLMResponse(llm_status=LLMStatus.OK, result=result)
+
+    def ledger(self, payload: MessagePayload) -> LLMResponse[LedgerResult]:
+        if self.invalid:
+            return LLMResponse(llm_status=LLMStatus.INVALID_OUTPUT, error="fake invalid ledger")
+        return LLMResponse(
+            llm_status=LLMStatus.OK,
+            result=LedgerResult(
+                record_id=payload.message_id,
+                summary="Synthetic record for a deterministic test.",
+                merchant=None,
+                vertical=LedgerVertical.OTHER,
+                segment=LedgerSegment.CONSUMER,
+                labels=["synthetic", "payment"],
+                needs_review=False,
+                review_reasons=[],
+                model_version="fake-v1",
+            ),
+        )
 
 
 __all__ = ["DisabledClient", "FakeClient", "LLMClient", "LLMResponse"]

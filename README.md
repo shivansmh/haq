@@ -14,6 +14,9 @@ This repository now contains the contract-first T0 foundation from the technical
 - Reserved directories for the engine, ingest, cleaning, matching, claims, data and web client.
 - Pydantic-backed Rights Registry with all 16 research seed entries and mirrored conflicts.
 - Registry loader, demo/live status gates and `python -m engine.registry check` verification command.
+- Structured flagged-record ledger: one `haq.flag.v1` record per transaction or invoice, with
+  related-email clustering, duplicate detection, refund tracking, rule-compliance checks,
+  business/gaming labels, and optional advisory Groq labels.
 
 The project still performs **no legal calculation, statement parsing, persistence, portal automation or filing**. T1 entries are deliberately `Seeded` or `Parked`; they are not verified legal conclusions. Live computation remains blocked until research verification and peer-checked examples are complete.
 

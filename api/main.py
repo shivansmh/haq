@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import math
 import os
+import re
 import secrets
 import time
 from datetime import date, timedelta
@@ -29,6 +30,7 @@ from .gmail_service import (
     refresh_access_token,
     search_gmail,
 )
+from .ledger_store import GMAIL_LEDGERS
 from .schemas import (
     ClaimDraftRequest,
     ClassifyRequest,
@@ -121,6 +123,24 @@ def _set_session_cookie(response: Response, session_id: str) -> None:
     )
 
 
+def _ledger_key(request: Request) -> str:
+    """Use the connected session or an unguessable browser-scoped demo id."""
+    return _session_id(request) or _demo_ledger_key(request) or "demo"
+
+
+def _demo_ledger_key(request: Request) -> str | None:
+    token = request.headers.get("x-haq-demo-session", "").strip().lower()
+    if re.fullmatch(r"[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}", token):
+        return "demo-" + token
+    return None
+
+
+def _remember_sweep(session_id: str, result: dict[str, Any]) -> dict[str, Any]:
+    """Merge this sweep into the session ledger and return the merged view."""
+    records = result.get("flagged_records") or []
+    return GMAIL_LEDGERS.merge(session_id, records)
+
+
 def _gmail_token(request: Request) -> str:
     session_id = _session_id(request)
     session = GMAIL_SESSIONS.get(session_id or "")
@@ -170,6 +190,7 @@ def _gmail_llm_runtime() -> tuple[GroqClient | None, LLMSettings]:
                 triage_model=settings.triage_model,
                 extract_model=settings.extract_model,
                 recheck_model=settings.recheck_model,
+                ledger_model=settings.ledger_model,
                 timeout_seconds=settings.timeout_seconds,
                 spend_cap_usd=settings.spend_cap_usd,
             )
@@ -194,6 +215,7 @@ def _groq_readiness() -> str:
         os.getenv("LLM_MODEL_TRIAGE", "openai/gpt-oss-20b").strip(),
         os.getenv("LLM_MODEL_EXTRACT", "openai/gpt-oss-20b").strip(),
         os.getenv("LLM_MODEL_RECHECK", "openai/gpt-oss-20b").strip(),
+        os.getenv("LLM_MODEL_LEDGER", "openai/gpt-oss-20b").strip(),
     )
     if any(model not in PRICING for model in model_ids):
         return "unsupported_model"
@@ -306,13 +328,15 @@ def gmail_scan_endpoint(request: Request, payload: GmailScanRequest) -> dict[str
     try:
         access_token = _gmail_token(request)
         llm_client, llm_settings = _gmail_llm_runtime()
-        return search_gmail(
+        result = search_gmail(
             access_token,
             payload.query or "",
             payload.max_results,
             llm_client=llm_client,
             llm_settings=llm_settings,
         )
+        result["ledger"] = _remember_sweep(_ledger_key(request), result)
+        return result
     except GmailAccessError as exc:
         raise HTTPException(status_code=502, detail=str(exc)) from exc
 
@@ -343,6 +367,7 @@ def gmail_sweep_start(request: Request, payload: GmailSweepRequest) -> dict[str,
             progress=on_progress,
             should_cancel=job.cancel_event.is_set,
         )
+        result["ledger"] = _remember_sweep(session_id, result)
         emails = result.get("emails", [])
         job.listed = job.triaged = job.analysed = int(result.get("emails_scanned", 0))
         job.relevant = int(result.get("financial_alerts_found", 0))
@@ -382,9 +407,29 @@ def gmail_sweep_cancel(request: Request, job_id: str) -> dict[str, Any]:
 
 
 @app.post("/v1/gmail/demo")
-def gmail_demo() -> dict[str, Any]:
+def gmail_demo(request: Request, response: Response) -> dict[str, Any]:
     """Run the synthetic inbox demo without requesting Google access."""
-    return search_gmail(None, max_results=50, demo=True)
+    # Give each anonymous browser its own demo ledger so repeated demo sweeps can
+    # show tracking without mixing records across visitors.
+    key = _session_id(request) or _demo_ledger_key(request)
+    if not key:
+        key = "demo-" + secrets.token_urlsafe(12)
+        _set_session_cookie(response, key)
+    result = search_gmail(None, max_results=50, demo=True)
+    result["ledger"] = GMAIL_LEDGERS.merge(key, result.get("flagged_records") or [])
+    return result
+
+
+@app.get("/v1/gmail/ledger")
+def gmail_ledger(request: Request) -> dict[str, Any]:
+    """Return every flagged record tracked for this session, across sweeps."""
+    return GMAIL_LEDGERS.get(_ledger_key(request))
+
+
+@app.delete("/v1/gmail/ledger")
+def gmail_ledger_clear(request: Request) -> dict[str, bool]:
+    """Forget this session's tracked records; nothing was stored elsewhere."""
+    return {"cleared": GMAIL_LEDGERS.clear(_ledger_key(request))}
 
 
 @app.post("/v1/gmail/disconnect")

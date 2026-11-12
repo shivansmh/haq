@@ -6,6 +6,11 @@
 - [x] Normalized events group debit, failure, refund, cancellation, ATM, and invoice facts while redacting sensitive quote content.
 - [x] Cases pair related emails by reference or same-amount proximity, deduplicate events, and expose safe status fields.
 - [x] Gmail sweep responses include grouped cases and evidence-first claim packs without computing from unverified registry entries.
+- [x] Every flagged transaction/invoice gets a `haq.flag.v1` record with amount, labels, segment, vertical, resolution tracking and rule compliance.
+- [x] Related emails cluster into one record; duplicate bank alerts are marked instead of counted twice.
+- [x] A session ledger merges records across sweeps so a later refund updates the original flag.
+- [x] Gaming and business transactions are labelled without adding unverified claim types.
+- [x] Optional Groq labels are advisory only; amounts, status and legal fields stay deterministic.
 
 ## Mobile-first golden path
 

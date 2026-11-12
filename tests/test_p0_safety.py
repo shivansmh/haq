@@ -26,7 +26,7 @@ def test_gmail_counts_are_exact_and_no_bodies_leave_sweep() -> None:
 def test_candidate_values_are_derived_from_messages() -> None:
     result = filter_and_extract_transactions(get_demo_email_corpus())
     upi = next(candidate for candidate in result["candidates"] if candidate["channel"] == "UPI")
-    demo_ref = "431209" + "845123"
+    demo_ref = "UPIREF-DEMO-001"
 
     assert upi["date"] == "2026-11-03"
     assert upi["reversal_date"] == "2026-11-09"

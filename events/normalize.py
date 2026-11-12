@@ -15,6 +15,7 @@ _KIND_TO_EVENT: dict[str, EventType] = {
     "upi_failed": "payment_failed",
     "upi_failed_debited": "payment_failed",
     "refund_credited": "refund_credited",
+    "invoice_paid": "payment_received",
     "order_cancelled": "order_cancelled",
     "atm_failure": "atm_cash_not_dispensed",
     "overdue_invoice": "invoice_overdue",
@@ -33,7 +34,7 @@ def _date(value: str | None) -> date | None:
 def _claim_type(signal: Signal) -> str:
     if signal.kind == "atm_failure":
         return "atm_cash_not_dispensed"
-    if signal.kind == "overdue_invoice":
+    if signal.kind in {"overdue_invoice", "invoice_paid"}:
         return "msme_invoice_overdue"
     if signal.kind == "order_cancelled":
         return "order_cancelled_refund_delayed"
@@ -42,12 +43,13 @@ def _claim_type(signal: Signal) -> str:
     return "upi_failed_debited"
 
 
-def normalize_email(message: dict[str, Any]) -> Event | None:
+def normalize_email(message: dict[str, Any], signal: Signal | None = None) -> Event | None:
+    """Normalize one message. Pass the already-computed signal to avoid parsing twice."""
     sender = str(message.get("sender", ""))
     subject = str(message.get("subject", ""))
     snippet = str(message.get("snippet", ""))
     body = str(message.get("body", ""))
-    signal = classify_message(sender, subject, snippet, body)
+    signal = signal or classify_message(sender, subject, snippet, body)
     event_type = _KIND_TO_EVENT.get(signal.kind)
     if event_type is None:
         return None
@@ -67,8 +69,24 @@ def normalize_email(message: dict[str, Any]) -> Event | None:
         subject=subject,
         confidence="High" if signal.sender_tier in {"bank", "upi_app", "merchant"} else "Medium",
         reasons=list(signal.reasons),
+        signal_kind=signal.kind,
+        channel=signal.channel,
     )
 
 
-def normalize_emails(messages: list[dict[str, Any]]) -> list[Event]:
-    return [event for message in messages if (event := normalize_email(message)) is not None]
+def normalize_emails(
+    messages: list[dict[str, Any]],
+    signals_by_id: dict[str, Signal] | None = None,
+) -> list[Event]:
+    """Normalize messages, reusing signals from the sweep's first classification pass."""
+    return [
+        event
+        for message in messages
+        if (
+            event := normalize_email(
+                message,
+                (signals_by_id or {}).get(str(message.get("id", ""))),
+            )
+        )
+        is not None
+    ]

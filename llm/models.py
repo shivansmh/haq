@@ -59,6 +59,22 @@ class Channel(str, Enum):
     UNKNOWN = "unknown"
 
 
+class LedgerVertical(str, Enum):
+    GAMING = "gaming"
+    ECOMMERCE = "ecommerce"
+    FOOD_DELIVERY = "food_delivery"
+    TRAVEL = "travel"
+    UTILITIES = "utilities"
+    BUSINESS = "business"
+    FINANCE = "finance"
+    OTHER = "other"
+
+
+class LedgerSegment(str, Enum):
+    CONSUMER = "consumer"
+    BUSINESS = "business"
+
+
 class MessagePayload(BaseModel):
     model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
 
@@ -164,6 +180,22 @@ class TriageResult(BaseModel):
     model_version: str = Field(min_length=1, max_length=100)
 
 
+class LedgerResult(BaseModel):
+    """Advisory labels for one flagged record. It cannot set legal fields or amounts."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    record_id: str = Field(min_length=1, max_length=200)
+    summary: str = Field(max_length=400)
+    merchant: str | None = Field(default=None, max_length=120)
+    vertical: LedgerVertical
+    segment: LedgerSegment
+    labels: list[str] = Field(default_factory=list, max_length=8)
+    needs_review: bool
+    review_reasons: list[str] = Field(default_factory=list, max_length=10)
+    model_version: str = Field(min_length=1, max_length=100)
+
+
 class ExtractionResult(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -195,6 +227,9 @@ __all__ = [
     "AmountWithQuote",
     "FieldStatus",
     "FieldWithQuote",
+    "LedgerResult",
+    "LedgerSegment",
+    "LedgerVertical",
     "LLMStatus",
     "MessagePayload",
     "Relevance",

@@ -10,6 +10,7 @@ EventType = Literal[
     "payment_failed",
     "refund_promised",
     "refund_credited",
+    "payment_received",
     "order_cancelled",
     "atm_cash_not_dispensed",
     "invoice_overdue",
@@ -31,3 +32,7 @@ class Event(BaseModel):
     subject: str
     confidence: Literal["High", "Medium", "Low"]
     reasons: list[str] = Field(default_factory=list)
+    # Exact deterministic signal behind the event. It lets the ledger label a
+    # record ("failed with money debited" vs "failed only") without re-parsing text.
+    signal_kind: str | None = None
+    channel: str = ""

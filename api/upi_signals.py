@@ -47,10 +47,16 @@ UPI_APP_DOMAINS: tuple[str, ...] = (
 )
 
 MERCHANT_DOMAINS: tuple[str, ...] = (
+    # commerce and food
     "amazon.in", "amazon.com", "flipkart.com", "myntra.com", "swiggy.in", "swiggy.com",
     "zomato.com", "blinkit.com", "zeptonow.com", "bigbasket.com", "nykaa.com", "ajio.com",
     "meesho.com", "makemytrip.com", "goibibo.com", "irctc.co.in", "redbus.in",
     "bookmyshow.com", "uber.com", "olacabs.com", "razorpay.com",
+    # gaming, in-app purchases and digital storefronts (consumer segment)
+    "steampowered.com", "steamcommunity.com", "epicgames.com", "playstation.com", "xbox.com",
+    "nintendo.com", "riotgames.com", "supercell.com", "garena.com", "ea.com", "ubisoft.com",
+    "roblox.com", "minecraft.net", "googleplay.com", "play.google.com", "g2a.com",
+    "dream11.com", "mpl.live", "games24x7.com", "zupee.com", "rummycircle.com",
 )
 
 
@@ -58,7 +64,8 @@ def sender_domain(sender: str) -> str:
     """Return the lower-cased domain of a From header, or '' if there is none."""
     _, address = parseaddr(sender or "")
     if "@" not in address:
-        return ""
+        domain = (sender or "").strip().strip("<>").lower()
+        return domain if re.fullmatch(r"[a-z0-9.-]+\.[a-z]{2,}", domain) else ""
     return address.rsplit("@", 1)[1].strip().lower()
 
 
@@ -148,6 +155,21 @@ ATM_FAIL_RE = re.compile(
 )
 OVERDUE_RE = re.compile(r"\boverdue\b", re.IGNORECASE)
 INVOICE_RE = re.compile(r"\binvoice\b", re.IGNORECASE)
+# A business resolution signal: the buyer confirms the invoice was paid. This is the
+# counterpart of `refund_credited` for suppliers and lets the ledger close an MSME case.
+INVOICE_PAID_RE = re.compile(
+    r"\b(?:payment|amount|invoice|remittance)\b[^\n]{0,80}\b(?:received|paid|settled|cleared|remitted)\b"
+    r"|\bpaid\b[^\n]{0,60}\binvoice\b"
+    r"|\bremittance\s+advice\b",
+    re.IGNORECASE,
+)
+# Extra context for the cheap header-only body-opening gate. Business and gaming mail
+# often says "purchase order", "in-app purchase" or "battle pass" instead of "UPI".
+EXTRA_CONTEXT_RE = re.compile(
+    r"\b(?:in[- ]app purchase|battle pass|gaming|game|top[- ]?up|purchase order"
+    r"|remittance advice|tax invoice|gstin|vendor|supplier|proforma)\b",
+    re.IGNORECASE,
+)
 
 # Devanagari combining marks are not \w, so \b is unreliable; match these as substrings.
 HINDI_FAIL = ("विफल", "असफल", "फेल")
@@ -176,6 +198,10 @@ class Signal:
     @property
     def is_exception(self) -> bool:
         return self.kind in EXCEPTION_KINDS
+
+    @property
+    def is_resolution(self) -> bool:
+        return self.kind in {"refund_credited", "invoice_paid"}
 
 
 def parse_amount(text: str) -> int | None:
@@ -250,6 +276,9 @@ def classify_message(sender: str, subject: str, snippet: str, body: str) -> Sign
     if INVOICE_RE.search(text) and OVERDUE_RE.search(text):
         return Signal("overdue_invoice", "MSME", "Overdue invoice; review evidence", tier, amount, ref,
                       (*reasons, "invoice wording with overdue wording"))
+    if INVOICE_RE.search(text) and INVOICE_PAID_RE.search(text):
+        return Signal("invoice_paid", "MSME", "Invoice payment confirmation", tier, amount, ref,
+                      (*reasons, "invoice wording with payment-received wording"))
     if cancel and not reversal_done and (amount is not None or ref or trusted):
         why = "refund still pending" if REFUND_PENDING_RE.search(text) else "no refund confirmation in this email"
         return Signal("order_cancelled", "ORDER", "Cancelled order; check the refund", tier, amount, ref,
@@ -276,5 +305,6 @@ def looks_payment_related(subject: str, snippet: str) -> bool:
     return bool(
         AMOUNT_RE.search(text) or UPI_CTX_RE.search(text) or PAY_CTX_RE.search(text)
         or ORDER_CANCEL_RE.search(text) or REVERSAL_DONE_RE.search(text) or INVOICE_RE.search(text)
+        or EXTRA_CONTEXT_RE.search(text)
         or any(word in text for word in (*HINDI_FAIL, *HINDI_CANCEL))
     )
